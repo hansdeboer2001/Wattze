@@ -18,7 +18,7 @@ zelf de Strava-koppeling gebruikt, gaan ritten naar Strava.
   training of bouw er zelf een en start hem in Ride.
 - **Live** (`/live`) — groot, rustig live-scherm voor naast de fiets.
 - **Mijn ritten** (`/ritten`) — opgenomen ritten bekijken en downloaden als TCX
-  (o.a. voor Strava of Garmin).
+  (o.a. voor Strava of Garmin), plus het screenshot van elke rit.
 - **Strava upload** (`/uploadstrava`) — ritten direct naar Strava sturen, of na
   een rit meteen met **Opslaan + Strava**. Zie [Strava-koppeling](#strava-koppeling).
 - **Apparaten** (`/start`) — trainer, hartslagmeter en Zwift Click kiezen, plus
@@ -77,7 +77,7 @@ Open daarna `http://localhost:8080/start` om je apparaten te kiezen.
 | `/live` | Groot live-scherm |
 | `/game` | Ride: rit met hellingbesturing, routes en KOM's |
 | `/blokjes` | Intervaltrainingen (ERG) maken en starten |
-| `/ritten` | Opgenomen ritten en TCX-download |
+| `/ritten` | Opgenomen ritten, TCX- en screenshot-download |
 | `/uploadstrava` | Verbinden met Strava en ritten uploaden |
 | `/start` | Apparaten kiezen en telefoon-QR |
 | `/afstandsbediening` (of `/remote`) | Telefoonafstandsbediening |
@@ -137,6 +137,28 @@ worden.
 Daarna zie je na elke rit (in Ride en bij Blokjes) de knop **Opslaan + Strava**.
 Oudere ritten upload je via `/uploadstrava`.
 
+### Wat er naar Strava gaat
+
+- **Titel:** `Wattze - <naam van de rit>`, of `Wattze - Rit` als de rit geen
+  naam heeft.
+- **Beschrijving:** wordt automatisch ingevuld met route, vermogen
+  (gemiddeld, NP en max), hoogtemeters, hartslag, cadans en je KOM-tijden. Bij
+  Blokjes staan de naam van de training en het gemeten vermogen erin.
+- De rit wordt als **trainerrit** gemarkeerd.
+
+Na de upload verschijnt **Open op Strava**, een link naar de nieuwe activiteit.
+
+### Screenshot toevoegen
+
+Na elke rit bewaart Wattze een screenshot: in Ride het spelscherm met je
+ritgegevens, bij Blokjes de trainingsgrafiek. De Strava-API laat geen foto's
+uploaden (dat mogen alleen partners zoals Zwift), dus het screenshot voeg je
+zelf toe:
+
+1. Klik na de upload op **Screenshot downloaden**. Dat kan ook later, via de
+   link **Screenshot** bij Mijn ritten of op `/uploadstrava`.
+2. Klik op **Open op Strava** en sleep het screenshot in de activiteit.
+
 ### Belangrijk
 
 - **Deel `.env` niet en zet hem nooit in git.** Hij staat in `.gitignore`.
@@ -157,8 +179,24 @@ Opgeslagen gegevens staan in `WattzeRitten/` (automatisch aangemaakt):
 - `rides.json` — index van opgenomen ritten.
 - `koms.json` — KOM-tijden.
 - `*.tcx` — de opgenomen ritten.
+- `*.png` — het screenshot bij een rit (zelfde naam als de `.tcx`).
 
 Deze map wordt niet in git opgenomen.
+
+## Voor ontwikkelaars
+
+### Sim (alleen voor testen)
+
+Open de game via `http://localhost:8080/game?sim=1`. Er verschijnt dan een
+knop **Sim** naast Stop. Daarmee stel je een vast vermogen (0–2000 W) en een
+vaste cadans (0–200 rpm) in, die de game gebruikt in plaats van de trainer.
+Zo kun je testen zonder te fietsen.
+
+- Via gewoon `/game` (en het dashboard) is de knop niet te zien.
+- Het opgenomen `.tcx`-bestand bevat het **echte** vermogen en de echte cadans
+  van de trainer. Snelheid en afstand komen wel uit de simulatie.
+- Wordt zo'n rit naar Strava geüpload, dan staat in de beschrijving
+  "(deels) gesimuleerd vermogen gebruikt".
 
 ## Tests
 
