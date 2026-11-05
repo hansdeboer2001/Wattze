@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#0b0e14;color:#e7eaf0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+h1{font-size:26px;margin:0}
+#status{display:flex;align-items:center;gap:8px;font-size:14px;color:#9aa3b5}
+.dot{width:10px;height:10px;border-radius:50%;background:#ff5252}
+.dot.on{background:#5fd35f;box-shadow:0 0 8px #5fd35f}
+.back{color:#6fb0ff;font-size:14px;text-decoration:none;margin-left:10px}
+.back:hover{text-decoration:underline}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.card{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px}
+.card .v{font-size:34px;font-weight:700;line-height:1.1}
+.card .l{font-size:12px;color:#8b93a7;margin-top:4px}
+#power{color:#4da3ff}
+#hr{color:#ff7b7b}
+canvas{width:100%;height:260px;background:#151a24;border:1px solid #232c3d;border-radius:12px;display:block}
+#btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnHome:hover{background:#2c3a5a;color:#fff}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<div class="wrap">
+<header>
+  <h1>Live</h1>
+  <div id="status"><span class="dot" id="dot"></span><span id="stext">verbinden...</span></div>
+</header>
+<div class="grid">
+  <div class="card"><div class="v" id="power">0</div><div class="l">Watt (actueel)</div></div>
+  <div class="card"><div class="v" id="avg">0</div><div class="l">Watt (gemiddeld)</div></div>
+  <div class="card"><div class="v" id="max">0</div><div class="l">Watt (max)</div></div>
+  <div class="card"><div class="v" id="cad">0</div><div class="l">Cadans (rpm)</div></div>
+  <div class="card"><div class="v" id="spd">0</div><div class="l">Snelheid (km/h)</div></div>
+  <div class="card"><div class="v" id="hr">0</div><div class="l">Hartslag (bpm)</div></div>
+</div>
+<canvas id="chart" width="900" height="260"></canvas>
+<script>
+const pts=[];
+const es=new EventSource('/events');
+const dot=document.getElementById('dot'),stext=document.getElementById('stext');
+es.onmessage=e=>{
+  const d=JSON.parse(e.data);
+  document.getElementById('power').textContent=d.power;
+  document.getElementById('avg').textContent=d.avg;
+  document.getElementById('max').textContent=d.max;
+  document.getElementById('cad').textContent=d.cadence;
+  document.getElementById('spd').textContent=d.speed;
+  document.getElementById('hr').textContent=d.hr||0;
+  dot.className='dot'+(d.connected?' on':'');
+  stext.textContent=d.connected?'verbonden':'niet verbonden';
+  pts.push(d.power); if(pts.length>180)pts.shift();
+  draw();
+};
+es.onerror=()=>{dot.className='dot';stext.textContent='geen verbinding met server';};
+function draw(){
+  const c=document.getElementById('chart'),x=c.getContext('2d');
+  const W=c.width,H=c.height;x.clearRect(0,0,W,H);
+  if(pts.length<2)return;
+  const peak=Math.max(200,...pts);
+  x.strokeStyle='#4da3ff';x.lineWidth=2;x.beginPath();
+  pts.forEach((p,i)=>{const px=i/179*W,py=H-8-(p/peak)*(H-20);i?x.lineTo(px,py):x.moveTo(px,py);});
+  x.stroke();
+  x.lineTo((pts.length-1)/179*W,H);x.lineTo(0,H);x.closePath();
+  x.fillStyle='rgba(77,163,255,.15)';x.fill();
+  x.fillStyle='#aaa';x.font='12px sans-serif';x.fillText(Math.round(peak)+' W',8,14);
+}
+fetch('/api').then(r=>r.json()).then(d=>{(d.hist||[]).forEach(p=>pts.push(p));draw();});
+</script>
+</body></html>

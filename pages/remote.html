@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0b0e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Versnelling</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#0b0e14;color:#e7eaf0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vh;
+  padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;overflow:hidden}
+#status{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+  font-size:13px;color:#9aa3b5;display:flex;align-items:center;gap:7px;white-space:nowrap}
+#dot{width:9px;height:9px;border-radius:50%;background:#ff5252;transition:background .2s}
+#dot.on{background:#5fd35f;box-shadow:0 0 8px #5fd35f}
+#label{font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:#9aa3b5}
+#gear{font-size:min(30vw,24vh);line-height:.9;font-weight:800;letter-spacing:-.04em;
+  display:flex;align-items:baseline;gap:.1em;font-variant-numeric:tabular-nums}
+#gear small{font-size:.28em;font-weight:600;color:#9aa3b5;letter-spacing:0}
+#btns{display:flex;gap:6vw;width:100%;max-width:620px}
+#btns button{flex:1;aspect-ratio:1;border:0;border-radius:22%;background:#1c2433;color:#fff;
+  font-size:min(26vw,20vh);font-weight:300;line-height:1;cursor:pointer;
+  box-shadow:inset 0 -6px 0 rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.4);
+  touch-action:none;transition:transform .06s,background .12s}
+#btns button:active{transform:scale(.96);background:#2f6fed}
+#btns button:disabled{opacity:.35}
+#hint{font-size:12px;color:#5f6a7d;text-align:center;line-height:1.5}
+#fanBox{display:none;width:100%;max-width:620px;text-align:center}
+#fanBox .fl{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#9aa3b5;margin-bottom:10px}
+#fanBtns{display:flex;gap:10px}
+#fanBtns button{flex:1;border:0;border-radius:14px;background:#1c2433;color:#fff;padding:14px 0;font-size:18px;font-weight:700;cursor:pointer}
+#fanBtns button.on{background:#2f6fed}
+#btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnHome:hover{background:#2c3a5a;color:#fff}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<div id="status"><span id="dot"></span><span id="stext">verbinden...</span></div>
+<div id="label">Versnelling</div>
+<div id="gear"><span id="v">&ndash;</span><small id="m">/ 24</small></div>
+<div id="btns"><button id="down" aria-label="Lichter">&minus;</button><button id="up" aria-label="Zwaarder">+</button></div>
+<div id="fanBox"><div class="fl">Ventilator</div><div id="fanBtns">
+<button data-lvl="0">Uit</button><button data-lvl="1">1</button><button data-lvl="2">2</button><button data-lvl="3">3</button>
+</div></div>
+<div id="hint">Houd ingedrukt om snel te schakelen</div>
+<script>
+const elV=document.getElementById('v'),elM=document.getElementById('m'),
+  dot=document.getElementById('dot'),stext=document.getElementById('stext'),
+  btnDown=document.getElementById('down'),btnUp=document.getElementById('up');
+let gear=null,max=24;
+function render(){
+  if(gear===null)return;
+  elV.textContent=gear;elM.textContent='/ '+max;
+  btnDown.disabled=gear<=1;btnUp.disabled=gear>=max;
+}
+function online(on){
+  dot.classList.toggle('on',on);
+  stext.textContent=on?'verbonden met Ride':'geen verbinding';
+}
+async function shift(d){
+  try{
+    const r=await fetch('/gear',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({delta:d})});
+    const j=await r.json();
+    if(j.ok){gear=j.v;max=j.max||max;render();}
+    online(true);
+  }catch(e){online(false);}
+}
+fetch('/gear').then(r=>r.json()).then(j=>{gear=j.v;max=j.max;render();online(true);}).catch(()=>online(false));
+fetch('/api').then(r=>r.json()).then(j=>{if(j.fan)renderFan(j.fan);}).catch(()=>{});
+const es=new EventSource('/events');
+function renderFan(f){
+  const box=document.getElementById('fanBox');
+  if(!f||!f.connected){box.style.display='none';return;}
+  box.style.display='block';
+  const lvl=f.level||0;
+  document.querySelectorAll('#fanBtns button').forEach(b=>b.classList.toggle('on',+b.dataset.lvl===lvl));
+}
+es.onmessage=e=>{
+  online(true);
+  try{const d=JSON.parse(e.data);
+    if(typeof d.gear_max==='number'&&d.gear_max!==max){max=d.gear_max;if(gear>max)gear=max;render();}
+    if(typeof d.gear==='number'&&d.gear!==gear){gear=d.gear;render();}
+    if(d.fan)renderFan(d.fan);
+  }catch(err){}
+};
+document.querySelectorAll('#fanBtns button').forEach(b=>b.onclick=async()=>{
+  try{
+    const r=await fetch('/fan',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({level:+b.dataset.lvl,hold:true})});
+    const j=await r.json();
+    if(j.ok)renderFan({connected:true,level:j.level});
+    online(true);
+  }catch(e){online(false);}
+});
+es.onerror=()=>online(false);
+function bind(btn,dir){
+  let t=null,iv=null;
+  const stop=()=>{if(t){clearTimeout(t);t=null;}if(iv){clearInterval(iv);iv=null;}};
+  btn.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    try{btn.setPointerCapture(e.pointerId);}catch(err){}
+    shift(dir);
+    t=setTimeout(()=>{iv=setInterval(()=>shift(dir),160);},450);
+  });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(k=>btn.addEventListener(k,stop));
+  btn.addEventListener('contextmenu',e=>e.preventDefault());
+}
+bind(btnDown,-1);bind(btnUp,1);
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'||e.key===','){shift(-1);e.preventDefault();}
+  else if(e.key==='ArrowRight'||e.key==='.'){shift(1);e.preventDefault();}
+});
+</script></body></html>

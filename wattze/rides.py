@@ -1,0 +1,146 @@
+import os
+import time
+import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
+
+from wattze.state import *
+from wattze.storage import load_index, save_index, slugify
+
+def fmt_time(t):
+    return datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def build_tcx(samples):
+    NS = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    TPX = "http://www.garmin.com/xmlschemas/ActivityExtension/v2"
+    ET.register_namespace("", NS)
+    ET.register_namespace("tpx", TPX)
+    tcd = ET.Element(f"{{{NS}}}TrainingCenterDatabase")
+    acts = ET.SubElement(tcd, "Activities")
+    act = ET.SubElement(acts, "Activity", Sport="Biking")
+    ET.SubElement(act, "Id").text = fmt_time(samples[0][0])
+    lap = ET.SubElement(act, "Lap", StartTime=fmt_time(samples[0][0]))
+    dur = max(1.0, samples[-1][0] - samples[0][0])
+    ET.SubElement(lap, "TotalTimeSeconds").text = f"{dur:.1f}"
+    ET.SubElement(lap, "DistanceMeters").text = f"{samples[-1][4]:.1f}"
+    ET.SubElement(lap, "MaximumSpeed").text = f"{max(s[3] for s in samples):.2f}"
+    joules = sum(s[1] for s in samples) * (dur / len(samples))
+    ET.SubElement(lap, "Calories").text = f"{joules / 4184 / 0.24:.0f}"
+    hrs = [s[6] for s in samples if s[6] > 0]
+    if hrs:
+        ah = ET.SubElement(lap, "AverageHeartRateBpm")
+        ET.SubElement(ah, "Value").text = str(round(sum(hrs) / len(hrs)))
+        mh = ET.SubElement(lap, "MaximumHeartRateBpm")
+        ET.SubElement(mh, "Value").text = str(max(hrs))
+    ET.SubElement(lap, "Intensity").text = "Active"
+    ET.SubElement(lap, "TriggerMethod").text = "Manual"
+    track = ET.SubElement(lap, "Track")
+    for (t, p, c, sp, d, e, h) in samples:
+        tp = ET.SubElement(track, "Trackpoint")
+        ET.SubElement(tp, "Time").text = fmt_time(t)
+        ET.SubElement(tp, "DistanceMeters").text = f"{d:.1f}"
+        ET.SubElement(tp, "AltitudeMeters").text = f"{e:.1f}"
+        ET.SubElement(tp, "Cadence").text = str(max(0, c))
+        if h > 0:
+            hb = ET.SubElement(tp, "HeartRateBpm")
+            ET.SubElement(hb, "Value").text = str(h)
+        ext = ET.SubElement(tp, "Extensions")
+        tpx = ET.SubElement(ext, f"{{{TPX}}}TPX")
+        ET.SubElement(tpx, f"{{{TPX}}}Watts").text = str(max(0, p))
+        ET.SubElement(tpx, f"{{{TPX}}}Speed").text = f"{sp:.2f}"
+    return ET.tostring(tcd, encoding="utf-8", xml_declaration=True)
+
+
+def rec_start(name, rtype):
+    with lock:
+        if rec["active"]:
+            rec_stop()
+        now = time.time()
+        rec.update(active=True, paused=False,
+                   name=name or datetime.now().strftime("Rit %Y-%m-%d %H:%M"),
+                   type=rtype or "rit", t0=now, samples=[],
+                   last_d=0.0, game_dist=None, game_ele=None, game_spd=None,
+                   game_power=None, game_cad=None)
+        return rec["name"]
+
+
+def rec_pause():
+    with lock:
+        if not rec["active"]:
+            return False
+        rec["paused"] = True
+        for k in ("game_dist", "game_ele", "game_spd", "game_power", "game_cad"):
+            rec[k] = None
+        return True
+
+
+def rec_resume():
+    with lock:
+        if not rec["active"]:
+            return False
+        rec["paused"] = False
+        return True
+
+
+def rec_stop():
+    with lock:
+        if not rec["active"]:
+            return None
+        rec["active"] = False
+        rec["paused"] = False
+        for k in ("game_dist", "game_ele", "game_spd", "game_power", "game_cad"):
+            rec[k] = None
+        samples = rec["samples"]
+        name, rtype, t0 = rec["name"], rec["type"], rec["t0"]
+        if len(samples) < 5:
+            return None
+        dur = max(1.0, samples[-1][0] - samples[0][0])
+        dist = samples[-1][4]
+        avg = sum(s[1] for s in samples) / len(samples)
+        mx = max(s[1] for s in samples)
+        hrs = [s[6] for s in samples if s[6] > 0]
+        avg_hr = round(sum(hrs) / len(hrs)) if hrs else 0
+        stamp = datetime.fromtimestamp(t0).strftime("%Y-%m-%d_%H%M%S")
+        fname = f"{stamp}_{slugify(name)}.tcx"
+        path = os.path.join(RIDE_DIR, fname)
+        i = 1
+        while os.path.exists(path):
+            i += 1
+            fname = f"{stamp}_{slugify(name)}_{i}.tcx"
+            path = os.path.join(RIDE_DIR, fname)
+        with open(path, "wb") as f:
+            f.write(build_tcx(samples))
+        rides = load_index()
+        rides.insert(0, {"file": fname, "name": name, "type": rtype,
+                         "date": datetime.fromtimestamp(t0).strftime("%Y-%m-%d %H:%M"),
+                         "duration": round(dur), "distance": round(dist),
+                         "avg_w": round(avg), "max_w": mx, "avg_hr": avg_hr,
+                         "size": os.path.getsize(path)})
+        save_index(rides)
+        return {"ok": True, "file": fname, "duration": round(dur),
+                "distance": round(dist), "avg_w": round(avg), "max_w": mx,
+                "avg_hr": avg_hr}
+
+
+def rec_sample_loop():
+    while True:
+        time.sleep(1.0)
+        with lock:
+            if not rec["active"] or rec.get("paused"):
+                continue
+            now = time.time()
+            if rec["type"] == "game" and rec["game_dist"] is not None:
+                d = rec["game_dist"]
+                e = rec["game_ele"] or 0.0
+                kmh = rec["game_spd"] if rec["game_spd"] is not None else state["speed"]
+            else:
+                d = rec["last_d"] + state["speed"] / 3.6
+                e = 0.0
+                kmh = state["speed"]
+            rec["last_d"] = d
+            pw = rec["game_power"] if rec["game_power"] is not None else state["power"]
+            cad = rec["game_cad"] if rec["game_cad"] is not None else state["cadence"]
+            rec["samples"].append((now, int(pw), int(round(cad)),
+                                  round(kmh / 3.6, 2), round(d, 1), round(e, 1),
+                                  int(state.get("hr", 0))))
+

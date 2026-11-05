@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instellingen</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0b0e14;color:#eee;margin:0;padding:12px}
+h1{font-size:20px;margin:0 0 2px}
+.sub{font-size:12px;color:#999;margin-bottom:8px}
+a{color:#4da3ff;font-size:13px}
+.card{background:#161b26;border-radius:12px;padding:20px;max-width:420px;margin-top:12px}
+label{display:block;font-size:13px;color:#9aa3b5;margin:14px 0 4px}
+label:first-child{margin-top:0}
+input,select{width:100%;box-sizing:border-box;font-size:16px;padding:8px;background:#222c44;color:#eee;border:1px solid #444;border-radius:6px}
+.hint{font-size:12px;color:#777;margin-top:4px}
+.fanW{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.fanW label{margin-top:14px}
+.fanW input{width:100%}
+button{background:#2f6fed;border:0;color:#fff;padding:10px 22px;font-size:15px;border-radius:8px;cursor:pointer;margin-top:18px}
+#fanExtra{display:none}
+#fanTest{display:flex;gap:8px}
+#fanTest button{flex:1;margin-top:12px;padding:8px 0}
+#msg{font-size:13px;margin-left:10px}
+#btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnHome:hover{background:#2c3a5a;color:#fff}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<h1>Instellingen</h1>
+<div class="card">
+<label for="username">Gebruikersnaam</label>
+<input id="username" maxlength="24" placeholder="bijv. Hans">
+<div class="hint">Staat bij je tijden in het KOM-klassement.</div>
+<label for="weight">Gewicht incl. fiets (kg)</label>
+<input id="weight" type="number" min="50" max="140" step="0.5">
+<div class="hint">Bepaalt je snelheid bergop en bergaf in Ride.</div>
+<label for="overlay">Tekstgrootte</label>
+<select id="overlay"><option value="klein">Klein</option><option value="middel">Middel</option><option value="groot">Groot</option></select>
+<div class="hint">Geldt voor alle tekst in de app: dashboard, Ride, blokjes, ritten en instellingen.</div>
+<label for="gears">Aantal versnellingen</label>
+<input id="gears" type="number" min="2" max="24" step="1">
+<div class="hint">Virtuele versnellingen in Ride en op de afstandsbediening. Minder versnellingen geeft grotere stappen; bij wijzigen begint de versnelling in het midden.</div>
+<label for="fanOn">Ventilator</label>
+<select id="fanOn"><option value="off">Uit</option><option value="on">Aan</option></select>
+<div id="fanExtra">
+<label for="fanHost">ESPHome-adres</label>
+<input id="fanHost" placeholder="http://192.168.1.50">
+<div class="hint">Webserver van de ESP32. Geen bericht = ventilator uit.</div>
+<div class="fanW">
+<label for="fanW1">Stand 1 vanaf (W)</label>
+<label for="fanW2">Stand 2 vanaf (W)</label>
+<label for="fanW3">Stand 3 vanaf (W)</label>
+<input id="fanW1" type="number" min="1" max="2000" step="5" value="80">
+<input id="fanW2" type="number" min="1" max="2000" step="5" value="160">
+<input id="fanW3" type="number" min="1" max="2000" step="5" value="240">
+</div>
+<div class="hint">Onder stand 1 blijft de ventilator uit. De standen moeten oplopen.</div>
+<label for="fanCoast">Uitdraaitijd na stop (s)</label>
+<input id="fanCoast" type="number" min="0" max="1800" step="30" value="300">
+<div class="hint">Na stop of onder drempel stand 1 blijft de fan zolang aan (standaard 5 min). HUD toont dan 0+.</div>
+<div class="hint" id="fanStat"></div>
+<div id="fanTest">
+<button type="button" data-lvl="0">Uit</button>
+<button type="button" data-lvl="1">1</button>
+<button type="button" data-lvl="2">2</button>
+<button type="button" data-lvl="3">3</button>
+</div>
+</div>
+<button id="save">Opslaan</button><span id="msg"></span>
+</div>
+<script>
+const u=document.getElementById('username'),w=document.getElementById('weight'),o=document.getElementById('overlay'),
+  gears=document.getElementById('gears'),
+  msg=document.getElementById('msg'),
+  fanExtra=document.getElementById('fanExtra'),
+  fanOn=document.getElementById('fanOn'),fanHost=document.getElementById('fanHost'),fanStat=document.getElementById('fanStat'),
+  fanW1=document.getElementById('fanW1'),fanW2=document.getElementById('fanW2'),fanW3=document.getElementById('fanW3'),
+  fanCoast=document.getElementById('fanCoast');
+function syncExtra(){
+  fanExtra.style.display=fanOn.value==='on'?'block':'none';
+}
+fanOn.onchange=syncExtra;
+syncExtra();
+function fanText(f){
+  if(!f||!f.on)return 'Ventilator uit';
+  if(!f.host)return 'Geen ESP-adres';
+  if(!f.connected)return f.err?('Geen verbinding: '+f.err):'Geen verbinding';
+  return f.level?('Stand '+f.level):'Uit (weinig vermogen)';
+}
+fetch('/settings').then(r=>r.json()).then(s=>{u.value=s.username||'';w.value=s.weight;o.value=s.overlay_font||'middel';
+  gears.value=s.vgear_max||24;
+  if(s.fan){fanOn.value=s.fan.on?'on':'off';fanHost.value=s.fan.host||'';fanStat.textContent=fanText(s.fan);
+    if(s.fan.w&&s.fan.w.length===3){fanW1.value=s.fan.w[0];fanW2.value=s.fan.w[1];fanW3.value=s.fan.w[2];}
+    if(s.fan.coast!=null)fanCoast.value=s.fan.coast;}
+  syncExtra();});
+setInterval(()=>fetch('/settings').then(r=>r.json()).then(s=>{if(s.fan)fanStat.textContent=fanText(s.fan);}).catch(()=>{}),2000);
+document.querySelectorAll('#fanTest button').forEach(b=>b.onclick=async()=>{
+  const r=await fetch('/fan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({level:+b.dataset.lvl})});
+  const d=await r.json();
+  msg.style.color=d.ok?'#5fd35f':'#ff7b7b';
+  msg.textContent=d.ok?('Test stand '+(d.level||'uit')):(d.error||'Fout');
+});
+document.getElementById('save').onclick=async()=>{
+  const r=await fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:u.value,weight:parseFloat(w.value),overlay_font:o.value,
+      vgear_max:parseInt(gears.value,10),
+      fan_on:fanOn.value==='on',fan_host:fanHost.value,
+      fan_w:[parseFloat(fanW1.value),parseFloat(fanW2.value),parseFloat(fanW3.value)],
+      fan_coast:parseInt(fanCoast.value,10)})});
+  const d=await r.json();
+  if(d.ok){w.value=d.weight;if(d.vgear_max)gears.value=d.vgear_max;msg.style.color='#5fd35f';msg.textContent='Opgeslagen';setTimeout(()=>location.reload(),500);}
+  else{msg.style.color='#ff7b7b';msg.textContent=d.error||'Fout';}
+};
+</script></body></html>

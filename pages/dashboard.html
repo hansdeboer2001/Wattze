@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#18202e 0,#0b0e14 55%);color:#e7eaf0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center;padding:32px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;width:min(900px,100%)}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;min-height:190px;background:#151a24;border:2px solid #232c3d;border-radius:16px;padding:22px;color:#e7eaf0;text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.ic{width:96px;height:96px;border-radius:22px;background:#1b2a4a;color:#7fb0ff;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.ic svg{width:58px;height:58px;display:block}
+.tile b{font-size:22px;font-weight:700;letter-spacing:.01em}
+.tile:hover,.tile:focus-visible{background:#1b2231;border-color:#2f6fed;transform:translateY(-2px)}
+.tile:focus-visible{outline:2px solid #6fa4ff;outline-offset:2px}
+#btnKill{position:fixed;top:16px;right:16px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#c62828;border:2px solid #ff6b6b;border-radius:10px;color:#fff;font-size:24px;font-weight:700;line-height:1;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnKill:hover{background:#e53935}
+#btnKill:disabled{opacity:.5;cursor:default}
+.bye{text-align:center;font-size:18px;color:#cdd5e6;padding:40px}
+</style></head><body>
+<button id="btnKill" type="button" title="App afsluiten" aria-label="App afsluiten">&#10005;</button>
+<main class="grid">
+  <a class="tile" href="/game"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg></span><b>Ride</b></a>
+  <a class="tile" href="/live"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><b>Live</b></a>
+  <a class="tile" href="/blokjes"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 13v5M12 9v9M17 5v13"/></svg></span><b>Blokjes</b></a>
+  <a class="tile" href="/start"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg></span><b>Apparaat</b></a>
+  <a class="tile" href="/afstandsbediening"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></span><b>Telefoon</b></a>
+  <a class="tile" href="/instellingen"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg></span><b>Instellingen</b></a>
+</main>
+<script>
+document.getElementById('btnKill').onclick=async()=>{
+  if(!confirm('De complete app stoppen? De server gaat uit.'))return;
+  const b=document.getElementById('btnKill');
+  b.disabled=true;
+  try{await fetch('/shutdown',{method:'POST'});}catch(e){}
+  document.body.innerHTML='<div class="bye">De app is gestopt. Start hem opnieuw.</div>';
+};
+</script>
+</body></html>

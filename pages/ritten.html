@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mijn ritten</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0b0e14;color:#eee;margin:0;padding:12px;max-width:1000px}
+h1{font-size:20px;margin:0 0 2px}
+.sub{font-size:12px;color:#999;margin-bottom:8px}
+a{color:#4da3ff;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px}
+button{background:#2f6fed;border:0;color:#fff;padding:8px 16px;font-size:14px;border-radius:8px;cursor:pointer}
+button.ghost{background:#333}
+button.del{padding:4px 10px;font-size:12px}
+.howto{background:#161b26;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:13px;line-height:1.7;color:#bbb}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #222}
+th{color:#999;font-weight:400}
+tr:hover td{background:#141926}
+#btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnHome:hover{background:#2c3a5a;color:#fff}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<h1>Mijn ritten</h1>
+<div class="sub">Elke rit wordt automatisch opgenomen (1 meting per seconde: watt, cadans, snelheid, afstand, hoogte) en als .TCX bewaard.</div>
+<div class="howto"><b>Naar Strava:</b> klik <b>Download</b> bij een rit &rarr; ga naar
+<a href="https://www.strava.com/upload/select" target="_blank" rel="noopener">strava.com/upload/select</a> &rarr;
+kies het .tcx-bestand &rarr; zet het vinkje bij trainer/virtuele rit. Klaar.</div>
+<div class="row"><button id="btnRefresh" class="ghost">Verversen</button><span id="count" style="color:#999"></span></div>
+<table><thead><tr><th>Naam</th><th>Datum</th><th>Type</th><th>Duur</th><th>Afstand</th><th>Gem</th><th>Max</th><th>HS</th><th></th></tr></thead>
+<tbody id="rows"></tbody></table>
+<script>
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+async function load(){
+  const d=await(await fetch('/ritten/list')).json();
+  const tb=document.getElementById('rows');tb.innerHTML='';
+  document.getElementById('count').textContent=d.rides.length+' ritten';
+  d.rides.forEach(r=>{
+    const tr=document.createElement('tr');
+    const mins=Math.floor(r.duration/60),km=(r.distance/1000).toFixed(1);
+    tr.innerHTML='<td>'+esc(r.name)+'</td><td>'+r.date+'</td><td>'+r.type+'</td><td>'+mins+'min</td><td>'+km+'km</td><td>'+r.avg_w+'W</td><td>'+r.max_w+'W</td><td>'+(r.avg_hr||'-')+'</td>';
+    const td=document.createElement('td');
+    const a=document.createElement('a');a.href='/ritten/download?f='+encodeURIComponent(r.file);a.textContent='Download';
+    const del=document.createElement('button');del.className='ghost del';del.textContent='Wis';
+    del.onclick=async()=>{if(!confirm('Wis "'+r.name+'"?'))return;
+      await fetch('/ritten/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:r.file})});load();};
+    td.appendChild(a);td.appendChild(document.createTextNode(' '));td.appendChild(del);
+    tr.appendChild(td);tb.appendChild(tr);
+  });
+  if(!d.rides.length)tb.innerHTML='<tr><td colspan="9" style="color:#888">Nog geen ritten — start een rit in Ride of de blokjes.</td></tr>';
+}
+document.getElementById('btnRefresh').onclick=load;
+load();
+</script></body></html>

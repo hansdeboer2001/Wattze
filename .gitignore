@@ -1,0 +1,11 @@
+.env
+deploy/.env
+route_GPX/
+__pycache__/
+wattze.log
+start_wattze.log
+WattzeRitten/
+server.log
+scenery-preview/
+build/
+dist/

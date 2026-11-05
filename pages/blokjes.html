@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blokjes</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0b0e14;color:#eee;margin:0;padding:12px}
+h1{font-size:20px;margin:0 0 2px}
+.sub{font-size:12px;color:#999;margin-bottom:8px}
+a{color:#4da3ff;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap;font-size:14px}
+button{background:#2f6fed;border:0;color:#fff;padding:8px 16px;font-size:14px;border-radius:8px;cursor:pointer}
+button.ghost{background:#333}
+button:disabled{opacity:.4;cursor:default}
+input,select{background:#222c44;color:#eee;border:1px solid #444;border-radius:6px;padding:6px;font-size:14px}
+.view{display:none}
+.view.on{display:block}
+#cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin:12px 0}
+.card{background:#161b26;border:1px solid #222;border-radius:12px;padding:12px;cursor:pointer}
+.card:hover,.card.on{border-color:#2f6fed}
+.card.on{box-shadow:0 0 0 1px #2f6fed}
+#editor{display:none;margin-top:8px;padding-top:12px;border-top:1px solid #222}
+.card b{display:block;font-size:14px;margin:6px 0 2px}
+.card .meta{font-size:12px;color:#999}
+.card.new{border-style:dashed;min-height:140px;display:flex;align-items:center;justify-content:center;color:#4da3ff;font-weight:700}
+.mini{display:flex;align-items:flex-end;height:64px;gap:1px;background:#0b0e14;border-radius:6px;padding:4px}
+.mini i{flex:1 1 0;min-width:2px;border-radius:2px 2px 0 0}
+#palette{display:flex;gap:8px;margin:8px 0}
+.pal{background:#222c44;border:1px dashed #2f6fed;border-radius:8px;padding:8px 14px;cursor:grab;font-size:14px}
+#tl{display:flex;align-items:flex-end;gap:5px;min-height:290px;background:#0b0e14;border:2px dashed #333;border-radius:10px;padding:12px 10px 4px;overflow-x:auto;position:relative}
+#tl.over{border-color:#2f6fed}
+#tl.locked{opacity:.65}
+.blk{position:relative;border-radius:6px;cursor:grab;flex:1 1 0;min-width:56px;display:flex;flex-direction:column;justify-content:flex-end;color:#eee;font-size:12px}
+.blk .editor{position:relative;padding:6px;font-size:11px;line-height:1.5;min-height:118px}
+.blk .barwrap{position:relative;height:150px}
+.blk .bar{position:absolute;bottom:0;left:0;right:0;border-radius:6px 6px 0 0}
+.blk input{width:50px;font-size:11px;padding:2px 4px;background:#fff;color:#111;border:0;border-radius:4px}
+.blk .del{position:absolute;top:0;right:4px;cursor:pointer;font-weight:700;font-size:14px;z-index:2}
+.blk .tag{font-weight:700;font-size:11px}
+.blk.cur{outline:3px solid #fff}
+.blk.drag{opacity:.4}
+#summary,#playSum{font-size:13px;color:#bbb;margin:8px 0}
+#playTl{display:flex;align-items:flex-end;gap:3px;min-height:170px;background:#0b0e14;border-radius:10px;padding:12px 10px 4px;overflow-x:auto;position:relative}
+.pblk{position:relative;flex:1 1 0;min-width:8px;height:150px}
+.pblk .bar{position:absolute;bottom:0;left:0;right:0;border-radius:4px 4px 0 0}
+.pblk.cur{outline:3px solid #fff}
+.pblk.done .bar{filter:brightness(1.35)}
+#playhead{position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 8px #fff;display:none;z-index:5;pointer-events:none}
+.blk.done .bar{filter:brightness(1.35)}
+#live{display:flex;gap:12px;align-items:baseline;margin:8px 0;flex-wrap:wrap}
+#live .t{font-size:40px;font-weight:700;color:#4da3ff}
+#live .a{font-size:24px;color:#5fd35f}
+#status{font-size:13px;color:#999}
+.zdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 3px 0 8px}
+#sumPwr,#stopChart{width:100%;height:140px;background:#0b0e14;border-radius:8px;display:block;margin:10px 0}
+.sstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin:8px 0}
+.sstats div{background:#161b26;border-radius:8px;padding:8px}
+.sstats .v{font-size:20px;font-weight:700}
+.sstats .l{font-size:11px;color:#999}
+#btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnHome:hover{background:#2c3a5a;color:#fff}
+#btnStopCorner{display:none;position:fixed;top:16px;right:16px;z-index:11;background:rgba(16,20,28,.92);border:2px solid #f4f6f8;color:#fff;border-radius:10px;padding:8px 14px;font-size:14px;line-height:1;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#stopAsk{display:none;position:fixed;inset:0;background:rgba(5,8,14,.9);align-items:center;justify-content:center;z-index:20;overflow:auto}
+#stopAskPanel{background:#161b26;border-radius:12px;padding:24px;max-width:520px;width:92%;margin:20px;text-align:center}
+#stopAskPanel h2{margin-top:0}
+#stopAsk .row{justify-content:center}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<button type="button" id="btnStopCorner">Stop</button>
+<div id="stopAsk"><div id="stopAskPanel">
+<h2 id="stopTitle">Training gepauzeerd</h2>
+<div id="stopHint" style="font-size:15px;margin:8px 0;color:#ffd24d">Je kunt de training hervatten.</div>
+<div class="sstats" id="stopStats"></div>
+<div style="font-size:12px;color:#999;text-align:left">Training</div>
+<canvas id="stopChart"></canvas>
+<div id="stopSave" style="display:none;margin-top:14px;padding:12px;background:#0b0e14;border-radius:8px;text-align:left">
+<div id="stopSaveTitle" style="font-size:14px;color:#ddd;margin-bottom:6px">Deze rit is opgenomen. Opslaan of negeren?</div>
+<div id="stopSaveInfo" style="font-size:12px;color:#777;margin-bottom:4px"></div>
+<div class="row" id="stopSaveRow"><button id="btnStopSave">Opslaan</button><button class="ghost" id="btnStopDrop">Negeren</button></div>
+</div>
+<div class="row" id="stopGoRow"><button id="btnContinue">Hervatten</button><button class="ghost" id="btnEndRide">Beëindigen</button></div>
+<div class="row"><button id="btnDash">Dashboard</button></div>
+</div></div>
+<h1 id="pageTitle">Blokjes</h1>
+<div class="sub" id="pageSub">Kies een training of bouw er een.</div>
+<div class="row" id="ftpRow"><label>FTP: <input id="ftp" type="number" value="200" min="80" max="500" style="width:70px"> W</label></div>
+
+<div id="viewMain" class="view">
+<div id="cards"></div>
+<div id="editor">
+<div class="row">
+<button class="ghost" id="btnSave">Bewaar</button>
+<select id="saved"></select>
+<button class="ghost" id="btnLoad">Laad</button>
+<button class="ghost" id="btnDel">Wis</button>
+</div>
+<div id="palette">
+<div class="pal" draggable="true" data-add="s">+ Constant blok</div>
+<div class="pal" draggable="true" data-add="r">+ Ramp (opbouw)</div>
+<button class="ghost" id="btnClear">Wis alles</button>
+</div>
+<div id="tl"></div>
+<div id="summary"></div>
+<div class="row">
+<button id="btnGo">Start training</button>
+<button class="ghost" id="btnToGame" title="Start deze training in Ride (ERG)">Ride</button>
+<span id="ergline" style="font-size:13px;color:#999">ERG: uit</span>
+</div>
+<div id="buildStatus" style="font-size:13px;color:#999"></div>
+<div style="font-size:12px;color:#888;margin-top:10px">
+<span class="zdot" style="background:#9fb3c8"></span>Z1
+<span class="zdot" style="background:#5fd35f"></span>Z2
+<span class="zdot" style="background:#ffd24d"></span>Z3
+<span class="zdot" style="background:#ff9a3d"></span>Z4
+<span class="zdot" style="background:#ff5252"></span>Z5
+<span class="zdot" style="background:#c26bff"></span>Z6+
+</div>
+</div>
+</div>
+
+<div id="viewPlay" class="view">
+<div id="live">
+<span class="t" id="liveT">-- W</span>
+<span class="a" id="liveA"></span>
+<span id="liveH" style="color:#ff7b7b;font-size:24px"></span>
+<span id="liveB" style="color:#999"></span>
+</div>
+<div id="playTl"><div id="playhead"></div></div>
+<div id="playSum"></div>
+<div class="row">
+<span style="display:flex;align-items:center;gap:4px"><button type="button" class="ghost" id="ergPctDown">&minus;</button><span id="ergPct" style="min-width:5ch;text-align:center;font-weight:700">0%</span><button type="button" class="ghost" id="ergPctUp">+</button></span>
+<button id="btnPause" class="ghost" disabled>Pauze</button>
+<button id="btnEnd" class="ghost" disabled>Stop</button>
+<span id="playErg" style="font-size:13px;color:#999"></span>
+</div>
+<div id="status"></div>
+</div>
+
+<div id="viewSum" class="view">
+<div id="sumTitle" style="font-size:16px;margin:8px 0"></div>
+<div class="sstats" id="sumStats"></div>
+<div style="font-size:12px;color:#999">Vermogen</div>
+<canvas id="sumPwr"></canvas>
+<div class="row"><button class="ghost" id="btnSumBack">Terug naar overzicht</button></div>
+</div>
+
+<script>
+let blocks=[],bid=1,wkName='',curView='main',edOpen=false;
+let power=0,hr=0,ergScale=1;
+const tl=document.getElementById('tl'),ftpEl=document.getElementById('ftp');
+const es=new EventSource('/events');
+es.onmessage=e=>{const d=JSON.parse(e.data);power=d.power;hr=d.hr||0;};
+window.addEventListener('pagehide',()=>{try{navigator.sendBeacon('/ritten/stop','{}');}catch(e){}});
+setInterval(async()=>{
+  try{const d=await(await fetch('/api')).json();
+    const t='ERG: '+(d.ctrl.erg_active?'actief':'uit')+' · trainer: '+
+      (d.ctrl.last_erg===null?'-':d.ctrl.last_erg+'W')+
+      (d.connected?'':' · trainer niet verbonden');
+    document.getElementById('ergline').textContent=t;
+    document.getElementById('playErg').textContent=t;
+  }catch(e){}
+},2000);
+
+const PRESETS={
+  voorbeeld:[{t:'s',d:300,p:50},{t:'s',d:600,p:75}],
+  herstel:[{t:'s',d:1800,p:55}],
+  warming:[{t:'s',d:300,p:50},{t:'s',d:300,p:70},{t:'s',d:120,p:85},{t:'s',d:180,p:55}],
+  piramide:[50,65,80,80,65,50].map(p=>({t:'s',d:300,p:p})),
+  sst:[{t:'s',d:480,p:55},{t:'s',d:720,p:88},{t:'s',d:240,p:50},
+       {t:'s',d:720,p:88},{t:'s',d:240,p:50},{t:'s',d:720,p:88},
+       {t:'s',d:240,p:50},{t:'s',d:480,p:55}],
+  sweetspot:[{t:'s',d:600,p:55},{t:'s',d:1200,p:88},{t:'s',d:300,p:50},
+             {t:'s',d:1200,p:88},{t:'s',d:600,p:55}],
+  overunder:[{t:'s',d:600,p:55},
+    {t:'s',d:120,p:95},{t:'s',d:120,p:105},{t:'s',d:120,p:95},
+    {t:'s',d:120,p:105},{t:'s',d:120,p:95},{t:'s',d:120,p:105},
+    {t:'s',d:600,p:55}],
+  vo2max:[{t:'s',d:600,p:55},
+    {t:'s',d:180,p:110},{t:'s',d:180,p:50},{t:'s',d:180,p:110},{t:'s',d:180,p:50},
+    {t:'s',d:180,p:110},{t:'s',d:180,p:50},{t:'s',d:180,p:110},{t:'s',d:180,p:50},
+    {t:'s',d:180,p:110},{t:'s',d:180,p:50},
+    {t:'s',d:600,p:55}],
+  dertig:[{t:'s',d:600,p:55},
+    ...Array(10).fill().flatMap(()=>[{t:'s',d:30,p:120},{t:'s',d:30,p:50}]),
+    {t:'s',d:300,p:55},
+    ...Array(10).fill().flatMap(()=>[{t:'s',d:30,p:120},{t:'s',d:30,p:50}]),
+    {t:'s',d:600,p:55}],
+  ramptest:[{t:'s',d:300,p:50},{t:'r',d:900,p:50,p2:130},{t:'s',d:300,p:45}],
+  ftptest:[{t:'s',d:300,p:50},{t:'s',d:300,p:70},{t:'s',d:120,p:90},
+           {t:'s',d:180,p:55},{t:'s',d:1200,p:100},{t:'s',d:600,p:50}]
+};
+const PRESET_NAMES={
+  voorbeeld:'5′100 + 10′150',herstel:'Herstel 30′',warming:'Warming-up',
+  piramide:'Piramide 30′',sst:'SST 3×12′',sweetspot:'Sweetspot 2×20′',
+  overunder:'Over-unders',vo2max:'VO2max 5×3′',dertig:'30/30′s',
+  ramptest:'Ramp test',ftptest:'FTP-test 20′'
+};
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+function zoneColor(w){
+  const ftp=+ftpEl.value||200,p=w/ftp*100;
+  if(p<55)return '#9fb3c8';if(p<75)return '#5fd35f';if(p<91)return '#ffd24d';
+  if(p<106)return '#ff9a3d';if(p<121)return '#ff5252';return '#c26bff';
+}
+function maxW(blks){blks=blks||blocks;return Math.max(250,...blks.map(b=>Math.max(b.p1,b.p2||0)));}
+function fmtDur(s){s=Math.round(s);const m=Math.floor(s/60);return m+"'"+(s%60?String(s%60).padStart(2,'0'):'');}
+function fmtT(s){s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);
+  return (h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(s%60).padStart(2,'0');}
+function presetToWatts(list){
+  const f=+ftpEl.value||200;
+  const w=p=>Math.max(0,Math.round(p/100*f/5)*5);
+  return list.map(o=>({id:bid++,type:o.t,dur:o.d,p1:w(o.p),p2:w(o.p2!==undefined?o.p2:o.p)}));
+}
+function summarizeBlocks(blks){
+  const per=[];
+  blks.forEach(b=>{const n=Math.max(1,Math.round(b.dur));
+    for(let i=0;i<n;i++)per.push(b.type==='r'?b.p1+(b.p2-b.p1)*(i/n):b.p1);});
+  if(!per.length)return null;
+  const avg=per.reduce((a,x)=>a+x,0)/per.length;
+  const np=Math.pow(per.reduce((a,x)=>a+Math.pow(x,4),0)/per.length,0.25);
+  const ftp=+ftpEl.value||200,iff=np/ftp;
+  return {t:per.length,avg:avg,np:np,iff:iff,tss:per.length*np*iff/(ftp*3600)*100};
+}
+function summarize(){return summarizeBlocks(blocks);}
+function miniHtml(blks){
+  const mw=maxW(blks);
+  return '<div class="mini">'+blks.map(b=>{
+    const h=Math.max(8,Math.round(Math.max(b.p1,b.p2||b.p1)/mw*56));
+    return '<i style="flex:'+b.dur+' 1 0;height:'+h+'px;background:linear-gradient(90deg,'+zoneColor(b.p1)+','+zoneColor(b.p2||b.p1)+')"></i>';
+  }).join('')+'</div>';
+}
+function showView(v){
+  curView=v;
+  document.getElementById('viewMain').classList.toggle('on',v==='main');
+  document.getElementById('viewPlay').classList.toggle('on',v==='play');
+  document.getElementById('viewSum').classList.toggle('on',v==='sum');
+  document.getElementById('ftpRow').style.display=(v==='play'||v==='sum')?'none':'flex';
+  const t=document.getElementById('pageTitle'),s=document.getElementById('pageSub');
+  if(v==='play'||v==='sum'){t.textContent=wkName||'Training';s.firstChild.textContent='';}
+  else {t.textContent='Blokjes';s.firstChild.textContent='Kies een training of bouw er een. ';}
+  const playing=v==='play'&&pl.on;
+  document.getElementById('btnHome').style.display=playing?'none':'';
+  document.getElementById('btnStopCorner').style.display=playing?'block':'none';
+}
+function markCard(){
+  document.querySelectorAll('.card').forEach(c=>{
+    const neu=c.classList.contains('new');
+    c.classList.toggle('on',edOpen&&((neu&&!wkName)||(!neu&&c.dataset.name===wkName)));
+  });
+}
+function openEditor(){
+  edOpen=true;
+  document.getElementById('editor').style.display='block';
+  render();
+  markCard();
+  document.getElementById('editor').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function pickWorkout(title,blks){
+  if(pl.on)return;
+  wkName=title;
+  blocks=blks.map(b=>({id:bid++,type:b.type,dur:b.dur,p1:b.p1,p2:b.p2||b.p1}));
+  openEditor();
+}
+function renderLib(){
+  const box=document.getElementById('cards');box.innerHTML='';
+  const neu=document.createElement('div');neu.className='card new';neu.dataset.name='';neu.textContent='+ Nieuwe training';
+  neu.onclick=()=>{if(pl.on)return;wkName='';blocks=[];openEditor();};
+  box.appendChild(neu);
+  function addCard(title,blks){
+    const s=summarizeBlocks(blks);
+    const el=document.createElement('div');el.className='card';el.dataset.name=title;
+    el.innerHTML=miniHtml(blks)+'<b>'+esc(title)+'</b><div class="meta">'+(s?fmtT(s.t)+' · TSS ~'+Math.round(s.tss)+' · gem '+Math.round(s.avg)+'W':'')+'</div>';
+    el.onclick=()=>pickWorkout(title,blks);
+    box.appendChild(el);
+  }
+  Object.keys(PRESETS).forEach(k=>addCard(PRESET_NAMES[k]||k,presetToWatts(PRESETS[k])));
+  savedKeys().forEach(k=>{
+    try{
+      const o=JSON.parse(localStorage.getItem(k));
+      const blks=(o.blocks||[]).map(b=>({type:b.type,dur:b.dur,p1:b.p1,p2:b.p2||b.p1}));
+      if(blks.length)addCard(k.slice(5),blks);
+    }catch(e){}
+  });
+  markCard();
+}
+
+function render(){
+  tl.querySelectorAll('.blk').forEach(d=>d.remove());
+  blocks.forEach(b=>{
+    const d=document.createElement('div');
+    d.className='blk';d.draggable=!pl.on;d.dataset.id=b.id;
+    const mins=(b.dur/60);
+    let fields='<div class="tag">'+(b.type==='r'?'Ramp':'Constant')+'</div>'+
+      'min: <input type="number" min="0.5" step="0.5" value="'+mins+'" data-f="dur"><br>';
+    if(b.type==='r')
+      fields+='van: <input type="number" step="5" value="'+b.p1+'" data-f="p1"> W<br>naar: <input type="number" step="5" value="'+b.p2+'" data-f="p2"> W';
+    else
+      fields+='<input type="number" step="5" value="'+b.p1+'" data-f="p1"> W';
+    d.innerHTML='<div class="editor">'+fields+'</div><div class="barwrap"><div class="bar"></div></div><span class="del" title="verwijder">×</span>';
+    d.querySelector('.del').onclick=()=>{blocks=blocks.filter(x=>x.id!==b.id);render();};
+    d.querySelectorAll('input').forEach(inp=>inp.onchange=()=>{
+      const v=parseFloat(inp.value);
+      if(inp.dataset.f==='dur')b.dur=Math.max(30,(isNaN(v)?1:v)*60);
+      if(inp.dataset.f==='p1')b.p1=Math.max(0,isNaN(v)?0:v);
+      if(inp.dataset.f==='p2')b.p2=Math.max(0,isNaN(v)?0:v);
+      if(b.type==='s')b.p2=b.p1;
+      refresh();
+    });
+    tl.appendChild(d);
+  });
+  refresh();
+}
+function refresh(){
+  const mw=maxW(),CH=150,sc=CH/mw;
+  tl.querySelectorAll('.blk').forEach(d=>{
+    const b=blocks.find(x=>x.id==d.dataset.id);
+    if(!b)return;
+    d.style.flex=b.dur+' 1 0';
+    const H=Math.max(b.p1,b.p2||b.p1)*sc;
+    const t1=H-b.p1*sc,t2=H-((b.p2||b.p1)*sc);
+    const bar=d.querySelector('.bar');
+    bar.style.height=H+'px';
+    bar.style.background='linear-gradient(90deg,'+zoneColor(b.p1)+','+zoneColor(b.p2||b.p1)+')';
+    bar.style.clipPath='polygon(0% 100%,0% '+t1+'px,100% '+t2+'px,100% 100%)';
+  });
+  const s=summarize();
+  const txt=s?'Totaal '+fmtT(s.t)+' · gem '+Math.round(s.avg)+'W · NP '+Math.round(s.np)+'W · IF '+s.iff.toFixed(2)+' · TSS ~'+Math.round(s.tss):'Lege training — voeg blokken toe.';
+  document.getElementById('summary').textContent=txt;
+  document.getElementById('playSum').textContent=s?txt:'';
+}
+function renderPlayTl(){
+  const box=document.getElementById('playTl');
+  box.querySelectorAll('.pblk').forEach(d=>d.remove());
+  const mw=maxW(),CH=150,sc=CH/mw;
+  blocks.forEach(b=>{
+    const d=document.createElement('div');
+    d.className='pblk';d.dataset.id=b.id;
+    d.style.flex=b.dur+' 1 0';
+    const H=Math.max(b.p1,b.p2||b.p1)*sc;
+    const t1=H-b.p1*sc,t2=H-((b.p2||b.p1)*sc);
+    d.innerHTML='<div class="bar"></div>';
+    const bar=d.querySelector('.bar');
+    bar.style.height=H+'px';
+    bar.style.background='linear-gradient(90deg,'+zoneColor(b.p1)+','+zoneColor(b.p2||b.p1)+')';
+    bar.style.clipPath='polygon(0% 100%,0% '+t1+'px,100% '+t2+'px,100% 100%)';
+    box.appendChild(d);
+  });
+}
+
+tl.addEventListener('dragstart',e=>{
+  const b=e.target.closest('.blk');if(!b)return;
+  b.classList.add('drag');e.dataTransfer.effectAllowed='move';
+});
+tl.addEventListener('dragend',()=>{
+  tl.querySelectorAll('.drag').forEach(x=>x.classList.remove('drag'));
+  tl.classList.remove('over');reorderFromDOM();
+});
+tl.addEventListener('dragover',e=>{
+  e.preventDefault();tl.classList.add('over');
+  const after=[...tl.querySelectorAll('.blk:not(.drag)')]
+    .find(el=>e.clientX<el.getBoundingClientRect().left+el.offsetWidth/2);
+  const cur=tl.querySelector('.drag');
+  if(cur)tl.insertBefore(cur,after||null);
+});
+tl.addEventListener('dragleave',()=>tl.classList.remove('over'));
+tl.addEventListener('drop',e=>{
+  e.preventDefault();tl.classList.remove('over');
+  const add=e.dataTransfer.getData('add');
+  if(add)insertBlockAt(add,e);
+});
+function reorderFromDOM(){
+  const ids=[...tl.querySelectorAll('.blk')].map(d=>+d.dataset.id);
+  blocks.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id));
+}
+function indexFromEvent(e){
+  const els=[...tl.querySelectorAll('.blk:not(.drag)')];
+  for(let i=0;i<els.length;i++)
+    if(e.clientX<els[i].getBoundingClientRect().left+els[i].offsetWidth/2)return i;
+  return els.length;
+}
+function mkBlock(type){
+  if(type==='r')return {id:bid++,type:'r',dur:300,p1:120,p2:180};
+  return {id:bid++,type:'s',dur:300,p1:150,p2:150};
+}
+function insertBlockAt(type,e){
+  const idx=indexFromEvent(e);
+  blocks.splice(idx,0,mkBlock(type));render();
+}
+document.querySelectorAll('.pal').forEach(p=>{
+  p.addEventListener('dragstart',e=>e.dataTransfer.setData('add',p.dataset.add));
+  p.onclick=()=>{blocks.push(mkBlock(p.dataset.add));render();};
+});
+document.getElementById('btnClear').onclick=()=>{if(!pl.on){blocks=[];render();}};
+ftpEl.onchange=()=>{try{localStorage.setItem('erg_ftp',ftpEl.value);}catch(e){}refresh();if(curView==='main')renderLib();};
+function savedKeys(){return Object.keys(localStorage).filter(k=>k.startsWith('ergw_'));}
+function refreshSaved(){
+  const s=document.getElementById('saved');s.innerHTML='';
+  savedKeys().forEach(k=>{
+    const o=document.createElement('option');o.value=k;
+    o.textContent=k.slice(5);s.appendChild(o);});
+}
+document.getElementById('btnSave').onclick=()=>{
+  const n=prompt('Naam voor deze training:');
+  if(!n)return;
+  wkName=n;
+  localStorage.setItem('ergw_'+n,JSON.stringify({ftp:+ftpEl.value,blocks:blocks}));
+  refreshSaved();
+  renderLib();
+};
+document.getElementById('btnLoad').onclick=()=>{
+  const k=document.getElementById('saved').value;if(!k||pl.on)return;
+  try{const o=JSON.parse(localStorage.getItem(k));
+    ftpEl.value=o.ftp||200;
+    wkName=k.slice(5);
+    blocks=o.blocks.map(b=>({id:bid++,type:b.type,dur:b.dur,p1:b.p1,p2:b.p2||b.p1}));
+    openEditor();
+  }catch(e){alert('Laden mislukt');}
+};
+document.getElementById('btnDel').onclick=()=>{
+  const k=document.getElementById('saved').value;if(!k)return;
+  localStorage.removeItem(k);refreshSaved();renderLib();
+};
+
+let pl={on:false,pause:false,t:0,lastPost:-9999,sumA:0,cntA:0,cd:0,total:0};
+const btnGo=document.getElementById('btnGo'),btnPause=document.getElementById('btnPause'),
+      btnEnd=document.getElementById('btnEnd');
+function postPower(p){
+  pl.lastPost=p;pl.lastPostT=pl.t;
+  fetch('/erg/power',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({power:Math.round(p)})});
+}
+function fmtErgPct(){
+  const p=Math.round((ergScale-1)*100);
+  return (p>0?'+':'')+p+'%';
+}
+function bumpErgScale(d){
+  ergScale=Math.max(0.5,Math.min(1.5,Math.round((ergScale+d)*20)/20));
+  document.getElementById('ergPct').textContent=fmtErgPct();
+  if(pl.on&&!pl.pause)pl.lastPost=-9999;
+}
+document.getElementById('ergPctDown').onclick=()=>bumpErgScale(-0.05);
+document.getElementById('ergPctUp').onclick=()=>bumpErgScale(0.05);
+function targetAt(t){
+  let acc=0;
+  for(const b of blocks){
+    if(t<acc+b.dur){
+      const f=(t-acc)/b.dur;
+      return {b:b,tgt:(b.type==='r'?b.p1+(b.p2-b.p1)*f:b.p1)*ergScale,nextIn:b.dur-(t-acc)};
+    }
+    acc+=b.dur;
+  }
+  return null;
+}
+btnGo.onclick=()=>{
+  if(!blocks.length){alert('Voeg eerst blokken toe');return;}
+  fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({cmd:'start_erg'})});
+  fetch('/ritten/start',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({type:'erg',name:wkName||('Blokjes '+fmtT(blocks.reduce((a,b)=>a+b.dur,0)))})});
+  pl={on:true,pause:false,t:0,lastPost:-9999,lastPostT:-99,sumA:0,cntA:0,cd:3,
+      total:blocks.reduce((a,b)=>a+b.dur,0),pwr:[],maxA:0};
+  postPower(targetAt(0).tgt);
+  tl.classList.add('locked');
+  tl.querySelectorAll('.blk').forEach(d=>d.draggable=false);
+  btnGo.disabled=true;btnPause.disabled=false;btnEnd.disabled=false;
+  document.getElementById('status').textContent='Start over 3…';
+  renderPlayTl();
+  showView('play');
+};
+btnPause.onclick=()=>{
+  if(!pl.on)return;
+  pl.pause=!pl.pause;
+  btnPause.textContent=pl.pause?'Verder':'Pauze';
+  if(pl.pause)postPower(0);else pl.lastPost=-9999;
+};
+let pendingRide=null,stopHeld=false;
+function stopStatsHtml(){
+  const avgA=pl.cntA?Math.round(pl.sumA/pl.cntA):0;
+  return [['Tijd',fmtT(pl.t)],['Gemeten gem',avgA+' W'],['Max',Math.round(pl.maxA||0)+' W'],
+    ['Doel',fmtT(pl.total)]].map(a=>'<div><div class="v">'+a[1]+'</div><div class="l">'+a[0]+'</div></div>').join('');
+}
+function openStop(){
+  if(!pl.on||stopHeld)return;
+  stopHeld=true;
+  pl.pause=true;
+  postPower(0);
+  fetch('/ritten/pause',{method:'POST'}).catch(()=>{});
+  document.getElementById('stopTitle').textContent='Training gepauzeerd';
+  document.getElementById('stopHint').style.display='';
+  document.getElementById('stopHint').textContent='Je kunt de training hervatten.';
+  document.getElementById('stopStats').innerHTML=stopStatsHtml();
+  paintStopChart();
+  document.getElementById('stopSave').style.display='none';
+  document.getElementById('stopSaveTitle').style.display='';
+  document.getElementById('stopSaveRow').style.display='';
+  document.getElementById('stopGoRow').style.display='';
+  document.getElementById('stopAsk').style.display='flex';
+}
+function continueWorkout(){
+  if(!stopHeld)return;
+  stopHeld=false;
+  pl.pause=false;
+  pl.lastPost=-9999;
+  document.getElementById('stopAsk').style.display='none';
+  fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'start_erg'})});
+  fetch('/ritten/resume',{method:'POST'}).catch(()=>{});
+  btnPause.textContent='Pauze';
+}
+function saveState(txt){
+  document.getElementById('stopSaveTitle').style.display='none';
+  document.getElementById('stopSaveRow').style.display='none';
+  document.getElementById('stopSaveInfo').textContent=txt;
+  document.getElementById('stopSave').style.display='block';
+}
+function endHeld(){
+  if(!stopHeld)return;
+  stopHeld=false;
+  pl.on=false;
+  fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'stop_erg'})});
+  document.getElementById('stopGoRow').style.display='none';
+  document.getElementById('stopHint').style.display='none';
+  document.getElementById('stopTitle').textContent='Training gestopt';
+  document.getElementById('stopStats').innerHTML=stopStatsHtml();
+  paintStopChart();
+  tl.classList.remove('locked');
+  tl.querySelectorAll('.blk').forEach(d=>d.draggable=true);
+  btnGo.disabled=false;btnPause.disabled=true;btnEnd.disabled=true;
+  btnPause.textContent='Pauze';
+  document.getElementById('btnHome').style.display='';
+  document.getElementById('btnStopCorner').style.display='none';
+  fetch('/ritten/stop',{method:'POST'}).then(r=>r.json()).then(d=>{
+    if(!d||!d.ok||!d.file){saveState('Geen opname om op te slaan.');return;}
+    pendingRide=d;
+    const km=((d.distance||0)/1000).toFixed(1).replace('.',',');
+    document.getElementById('stopSaveInfo').innerHTML='<b>'+fmtT(d.duration||0)+'</b> &middot; '+km+' km<br><span style="font-size:12px;color:#777">'+d.file+'</span>';
+    document.getElementById('stopSave').style.display='block';
+  }).catch(()=>saveState('Opslaan mislukt.'));
+}
+btnEnd.onclick=()=>openStop();
+document.getElementById('btnStopCorner').onclick=()=>openStop();
+document.getElementById('btnContinue').onclick=()=>continueWorkout();
+document.getElementById('btnEndRide').onclick=()=>endHeld();
+document.getElementById('btnStopSave').onclick=()=>{pendingRide=null;saveState('Opgeslagen in Mijn ritten.');};
+document.getElementById('btnStopDrop').onclick=async()=>{
+  const r=pendingRide;
+  if(!r){saveState('Rit niet opgeslagen.');return;}
+  try{
+    const d=await(await fetch('/ritten/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:r.file})})).json();
+    if(!d.ok){alert(d.error||'Wissen mislukt');return;}
+  }catch(e){alert('Wissen mislukt');return;}
+  pendingRide=null;
+  saveState('Rit niet opgeslagen.');
+};
+document.getElementById('btnDash').onclick=()=>{
+  fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'stop_erg'})});
+  location.href='/';
+};
+document.getElementById('btnToGame').onclick=()=>{
+  if(!blocks.length){alert('Voeg eerst blokken toe');return;}
+  try{
+    const data={name:wkName||('Blokjes '+fmtT(blocks.reduce((a,b)=>a+b.dur,0))),
+                ftp:+ftpEl.value||200,blocks:blocks};
+    localStorage.setItem('game_erg_once',JSON.stringify(data));
+  }catch(e){}
+  location.href='/game';
+};
+function paintWorkout(cv,blks,samples,scale){
+  const dpr=Math.min(1.25,window.devicePixelRatio||1);
+  const W=Math.max(1,cv.clientWidth||320),H=Math.max(1,cv.clientHeight||140);
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);
+  x.clearRect(0,0,W,H);
+  const ftp=+ftpEl.value||200,sc=scale||1;
+  const watts=(samples||[]).map(s=>typeof s==='number'?s:((s&&s.p)||0));
+  const total=Math.max(1,(blks||[]).reduce((a,b)=>a+(b.dur||0),0),watts.length);
+  let maxT=0;
+  (blks||[]).forEach(b=>{maxT=Math.max(maxT,(b.p1||0)*sc,(b.p2||b.p1||0)*sc);});
+  const mx=Math.max(ftp*1.2,maxT,...watts,1);
+  const pad=8,bot=16,x0=pad,x1=W-pad,y0=H-bot,y1=6;
+  const cw=Math.max(1,x1-x0),ch=Math.max(1,y0-y1);
+  const X=t=>x0+(t/total)*cw,Y=w=>y0-(Math.max(0,w)/mx)*ch;
+  let acc=0;
+  (blks||[]).forEach(b=>{
+    const xA=X(acc),xB=X(acc+b.dur);
+    const p1=(b.p1||0)*sc,p2=((b.p2!=null?b.p2:b.p1)||0)*sc;
+    x.beginPath();x.moveTo(xA,y0);x.lineTo(xA,Y(p1));x.lineTo(xB,Y(p2));x.lineTo(xB,y0);x.closePath();
+    x.fillStyle=zoneColor(p1);x.globalAlpha=.38;x.fill();x.globalAlpha=1;
+    acc+=b.dur;
+  });
+  if(watts.length>1){
+    x.lineJoin='round';x.lineCap='round';x.lineWidth=2;
+    for(let i=1;i<watts.length;i++){
+      x.strokeStyle=zoneColor(watts[i]);x.beginPath();
+      x.moveTo(X(i-1),Y(watts[i-1]));x.lineTo(X(i),Y(watts[i]));x.stroke();
+    }
+  }else if(!blks||!blks.length){
+    x.fillStyle='#666';x.font='12px system-ui';x.fillText('Geen vermogensdata',10,H/2);return;
+  }
+  const fy=Y(ftp);
+  x.strokeStyle='rgba(255,255,255,.45)';x.setLineDash([4,4]);x.lineWidth=1;
+  x.beginPath();x.moveTo(x0,fy);x.lineTo(x1,fy);x.stroke();x.setLineDash([]);
+  x.fillStyle='#9aa3b5';x.font='11px system-ui';
+  x.fillText('0:00',x0,H-3);
+  const end=fmtT(Math.round(total));
+  x.fillText(end,x1-x.measureText(end).width,H-3);
+}
+function paintSumPwr(samples){
+  paintWorkout(document.getElementById('sumPwr'),blocks,samples,ergScale);
+}
+function paintStopChart(){
+  const cv=document.getElementById('stopChart');
+  const draw=()=>paintWorkout(cv,blocks,pl.pwr||[],ergScale);
+  draw();requestAnimationFrame(draw);
+}
+function endWorkout(msg){
+  fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({cmd:'stop_erg'})});
+  fetch('/ritten/stop',{method:'POST'});
+  const avgA=pl.cntA?Math.round(pl.sumA/pl.cntA):0;
+  const done='Training '+msg+': '+fmtT(pl.t)+' gefietst · gemeten gem '+avgA+'W';
+  document.getElementById('status').textContent=done;
+  document.getElementById('buildStatus').textContent=done;
+  const samples=pl.pwr||[];
+  document.getElementById('sumTitle').textContent=(wkName||'Training')+' — '+msg;
+  document.getElementById('sumStats').innerHTML=
+    [['Tijd',fmtT(pl.t)],['Gemeten gem',avgA+' W'],['Max',Math.round(pl.maxA||0)+' W'],
+     ['Doel',fmtT(pl.total)]].map(a=>'<div><div class="v">'+a[1]+'</div><div class="l">'+a[0]+'</div></div>').join('');
+  pl.on=false;
+  tl.classList.remove('locked');
+  tl.querySelectorAll('.blk').forEach(d=>d.draggable=true);
+  btnGo.disabled=false;btnPause.disabled=true;btnEnd.disabled=true;
+  btnPause.textContent='Pauze';
+  document.getElementById('playTl').querySelectorAll('.cur,.done').forEach(d=>d.classList.remove('cur','done'));
+  document.getElementById('playhead').style.display='none';
+  showView('sum');
+  paintSumPwr(samples);
+  requestAnimationFrame(()=>paintSumPwr(samples));
+}
+document.getElementById('btnSumBack').onclick=()=>showView('main');
+setInterval(()=>{
+  if(!pl.on||stopHeld)return;
+  if(pl.cd>0){
+    pl.cd-=0.25;
+    document.getElementById('status').textContent='Start over '+Math.ceil(pl.cd)+'…';
+    if(pl.cd>0)return;
+    document.getElementById('status').textContent='Go!';
+  }
+  if(!pl.pause){
+    pl.t+=0.25;pl.sumA+=power;pl.cntA++;
+    if(power>pl.maxA)pl.maxA=power;
+    if(!pl.pwr)pl.pwr=[];
+    if(pl.pwr.length<=Math.floor(pl.t))pl.pwr.push(power);
+  }
+  const cur=targetAt(pl.t);
+  if(!cur){endWorkout('voltooid');return;}
+  if(!pl.pause&&(Math.abs(cur.tgt-pl.lastPost)>=2||pl.t-pl.lastPostT>=1))postPower(cur.tgt);
+  let acc=0,px=0;
+  document.getElementById('playTl').querySelectorAll('.pblk').forEach(d=>{
+    const b=blocks.find(x=>x.id==d.dataset.id);
+    if(!b)return;
+    const bend=acc+b.dur;acc=bend;
+    d.classList.toggle('cur',d.dataset.id==cur.b.id);
+    d.classList.toggle('done',bend<=pl.t);
+    if(d.dataset.id==cur.b.id){
+      const f=Math.max(0,Math.min(1,(pl.t-(bend-b.dur))/b.dur));
+      px=d.offsetLeft+f*d.offsetWidth;
+    }
+  });
+  const ph=document.getElementById('playhead');
+  ph.style.display='block';ph.style.left=px+'px';
+  document.getElementById('liveT').textContent=Math.round(cur.tgt)+' W';
+  document.getElementById('liveA').textContent=power+' W';
+  document.getElementById('liveH').textContent=hr>0?('♥ '+hr):'';
+  document.getElementById('liveB').textContent=
+    'blok '+fmtDur(cur.b.dur)+' · nog '+fmtT(cur.nextIn)+' · '+fmtT(pl.t)+' / '+fmtT(pl.total);
+},250);
+
+refreshSaved();
+try{const f=localStorage.getItem('erg_ftp');if(f)ftpEl.value=f;}catch(e){}
+let once=null;
+try{once=JSON.parse(localStorage.getItem('ergw_load_once')||'null');localStorage.removeItem('ergw_load_once');}catch(e){}
+showView('main');
+renderLib();
+if(once&&once.blocks&&once.blocks.length){
+  blocks=once.blocks.map(b=>({id:bid++,type:b.type,dur:b.dur,p1:b.p1,p2:(b.p2!==undefined?b.p2:b.p1)}));
+  wkName='';
+  openEditor();
+}
+</script></body></html>

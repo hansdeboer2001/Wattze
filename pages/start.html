@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apparaten</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0e14;color:#e7eaf0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:18px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+h1{font-size:26px;margin:0}
+.sub{font-size:13px;color:#8b93a7;margin-top:4px;line-height:1.5}
+.conn{font-size:13px;color:#9aa3b5;display:flex;align-items:center;gap:7px;white-space:nowrap;padding-top:4px}
+.dot{width:9px;height:9px;border-radius:50%;background:#ff5252;transition:background .2s}
+.dot.on{background:#5fd35f;box-shadow:0 0 8px #5fd35f}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:#151a24;border:1px solid #222b3d;border-radius:14px;padding:14px 16px 16px;display:flex;flex-direction:column;min-height:150px}
+.card h2{font-size:15px;margin:0 0 10px;color:#cdd5e6;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+.card h2 .ic{width:22px;text-align:center;font-size:18px;line-height:1;opacity:.95}
+.list{display:flex;flex-direction:column;gap:7px;flex:1}
+.dev{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:#1b2231;border:1px solid transparent;border-radius:10px;padding:9px 11px;color:#e7eaf0;font:inherit;cursor:pointer}
+.dev:hover{background:#222b3d}
+.dev.sel{border-color:#2f6fed;background:#1b2a4a}
+.dev .name{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dev .meta{font-size:11px;color:#8b93a7;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badges{display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.badge{font-size:10px;padding:3px 7px;border-radius:99px;background:#26324a;color:#a9b6cf;text-transform:uppercase;letter-spacing:.04em}
+.badge.on{background:#1e5c32;color:#9ff0b8}
+.badge.sel{background:#1f3f7a;color:#bcd3ff}
+.empty{font-size:12px;color:#7c859a;line-height:1.5;padding:6px 2px}
+.actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+button{font:inherit;font-size:13px;border:0;border-radius:8px;padding:8px 13px;background:#2f6fed;color:#fff;cursor:pointer}
+button.ghost{background:#26324a;color:#cdd5e6}
+button:hover{filter:brightness(1.1)}
+button:disabled{opacity:.5;cursor:default}
+.hint{font-size:12px;color:#8b93a7;line-height:1.5;margin:4px 0}
+.remote a{font-size:13px;color:#6fb0ff;word-break:break-all}
+.qrwrap{margin-top:10px}
+.qr{width:150px;height:150px;background:#fff;border-radius:8px;padding:6px;display:block}
+#btnStartApp{display:none;width:min(280px,100%);margin:22px auto 0;padding:14px 22px;font-size:18px;font-weight:700;background:#222c44;border:2px solid #7fb0ff;border-radius:12px;color:#c7d3e8;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+#btnStartApp:hover{background:#2c3a5a;color:#fff}
+.msg{font-size:12px;color:#8b93a7;margin-top:8px;min-height:16px}
+.msg.err{color:#ff8a8a}
+#btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnHome:hover{background:#2c3a5a;color:#fff}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Apparaten</h1>
+    <div class="sub">Kies je trainer, hartslagmeter en Click. Dit scherm vernieuwt elke 3 seconden.</div>
+  </div>
+  <div class="conn"><span id="dot" class="dot"></span><span id="connText">verbinden…</span></div>
+</header>
+
+<div class="grid">
+  <section class="card">
+    <h2><span class="ic" aria-hidden="true">&#9889;</span>Indoor trainers</h2>
+    <div id="trainers" class="list"><div class="empty">Scannen…</div></div>
+    <div class="actions"><button class="ghost" data-auto="kickr">Automatisch</button></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="ic" aria-hidden="true">&#9829;</span>Hartslagmeters</h2>
+    <div id="hrs" class="list"><div class="empty">Scannen…</div></div>
+    <div class="actions">
+      <button class="ghost" data-auto="hr">Automatisch</button>
+      <button class="ghost" data-hr-off>Uit</button>
+    </div>
+    <div id="hrOff" class="hint"></div>
+  </section>
+
+  <section class="card" id="fanCard" style="display:none">
+    <h2><span class="ic" aria-hidden="true">&#10052;</span>Ventilator</h2>
+    <div id="fanInfo" class="hint"></div>
+    <div class="actions"><button id="fanToggle">Aanzetten</button></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="ic" aria-hidden="true">&#128241;</span>Afstandsbediening</h2>
+    <div id="remoteHint" class="hint">Open deze link op je telefoon (zelfde Wi-Fi).</div>
+    <div class="remote"><a id="remoteLink" href="__LANURL__">__LANURL__</a></div>
+    <div class="qrwrap"><img id="qr" class="qr" alt="QR-code voor de afstandsbediening" onerror="this.style.display='none'"></div>
+    <div class="actions"><button id="copy" class="ghost">Kopieer link</button></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="ic" aria-hidden="true">&#9881;</span>Click-remote</h2>
+    <div id="clickState" class="hint">…</div>
+    <div id="clicks" class="list"></div>
+    <div class="actions"><button id="clickToggle" class="ghost">Uitzetten</button></div>
+  </section>
+</div>
+
+
+<button type="button" id="btnStartApp">Start</button>
+<div id="msg" class="msg"></div>
+</div>
+<script>
+if(new URLSearchParams(location.search).get('boot')==='1'){
+  document.getElementById('btnHome').style.display='none';
+  const b=document.getElementById('btnStartApp');
+  b.style.display='block';
+  b.onclick=()=>{location.href='/';};
+}
+const LANURL = '__LANURL__';
+const $ = id => document.getElementById(id);
+let busy = false, timer = null, lastRemote = '';
+
+function setMsg(text, err){
+  const m = $('msg');
+  m.textContent = text || '';
+  m.className = 'msg' + (err ? ' err' : '');
+}
+
+function empty(text){
+  const d = document.createElement('div');
+  d.className = 'empty';
+  d.textContent = text;
+  return d;
+}
+
+function fill(el, nodes, emptyText){
+  el.replaceChildren(...(nodes.length ? nodes : [empty(emptyText)]));
+}
+
+function badge(text, cls){
+  const b = document.createElement('span');
+  b.className = 'badge' + (cls ? ' ' + cls : '');
+  b.textContent = text;
+  return b;
+}
+
+function devRow(dev, kind){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'dev' + (dev.selected || dev.connected ? ' sel' : '');
+
+  const left = document.createElement('div');
+  left.style.minWidth = '0';
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.textContent = dev.name || dev.address;
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const extra = (dev.seen === false && !dev.connected) ? ' · niet gevonden' : '';
+  meta.textContent = dev.address
+    + (typeof dev.rssi === 'number' ? ' · ' + dev.rssi + ' dBm' : '') + extra;
+  left.append(name, meta);
+
+  const badges = document.createElement('div');
+  badges.className = 'badges';
+  if (dev.connected) badges.append(badge('verbonden', 'on'));
+  else if (dev.selected) badges.append(badge('gekozen', 'sel'));
+
+  b.append(left, badges);
+  b.onclick = () => selectDevice(kind, dev.address);
+  return b;
+}
+
+async function post(url, body){
+  const r = await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+
+async function selectDevice(kind, addr){
+  try {
+    if (kind === 'click') await post('/click', {on: true, addr});
+    else {
+      const body = {};
+      body[kind] = addr;
+      await post('/devices/select', body);
+    }
+    setMsg('Toegepast — opnieuw verbinden…');
+    poll();
+  } catch (e) {
+    setMsg('Keuze mislukt: ' + e.message, true);
+  }
+}
+
+function renderRemote(url){
+  if (!url || url === lastRemote) return;
+  lastRemote = url;
+  $('remoteLink').href = url;
+  $('remoteLink').textContent = url;
+  const bad = url.indexOf('127.0.0.1') >= 0 || url.indexOf('localhost') >= 0;
+  $('remoteHint').textContent = bad
+    ? 'Geen LAN-adres gevonden. Open de app via het netwerkadres van deze pc.'
+    : 'Open deze link op je telefoon (zelfde Wi-Fi).';
+  const qr = $('qr');
+  if (bad) {
+    qr.style.display = 'none';
+  } else {
+    qr.style.display = 'block';
+    qr.src = '/qr?text=' + encodeURIComponent(url);
+  }
+}
+
+function render(d){
+  $('dot').className = 'dot on';
+  const age = d.age || 0;
+  if (d.busy) {
+    $('connText').textContent = 'scannen...';
+  } else {
+    $('connText').textContent = age >= 1
+      ? 'scan ' + Math.round(age) + 's geleden'
+      : 'bijgewerkt nu';
+  }
+
+  const devices = d.devices || [];
+  const trainers = devices.filter(x => x.kind === 'trainer');
+  const trEmpty = (d.sel && d.sel.kickr)
+    ? 'Gekozen: ' + d.sel.kickr + ' — niet gevonden. Zet de trainer aan.'
+    : 'Geen trainers gevonden — zet de trainer aan.';
+  fill($('trainers'), trainers.map(x => devRow(x, 'kickr')), trEmpty);
+
+  const hrs = devices.filter(x => x.kind === 'hr');
+  let hrEmpty = 'Geen hartslagmeters gevonden.';
+  if (d.sel && d.sel.hr === '__off') hrEmpty = 'Hartslag staat uit.';
+  else if (d.sel && d.sel.hr) hrEmpty = 'Gekozen: ' + d.sel.hr + ' — niet gevonden.';
+  fill($('hrs'), hrs.map(x => devRow(x, 'hr')), hrEmpty);
+  $('hrOff').textContent = (d.sel && d.sel.hr === '__off' && hrs.length)
+    ? 'Hartslag staat uit.' : '';
+
+  const clicks = devices.filter(x => x.kind === 'click');
+  const want = !!(d.click && d.click.want);
+  fill($('clicks'), clicks.map(x => devRow(x, 'click')),
+    want ? 'Druk op een knop op de Click om hem wakker te maken.' : 'Click-koppeling staat uit.');
+
+  const ct = $('clickToggle');
+  ct.textContent = want ? 'Click uitzetten' : 'Click aanzetten';
+  ct.onclick = async () => {
+    try {
+      await post('/click', {on: !want});
+      setMsg('Click bijgewerkt.');
+      poll();
+    } catch (e) {
+      setMsg('Click mislukt: ' + e.message, true);
+    }
+  };
+
+  let cs = '…';
+  if (d.click) {
+    if (!d.click.want) cs = 'Uitgeschakeld.';
+    else if (d.click.connected) {
+      cs = 'Verbonden' + (d.click.device ? ' · ' + d.click.device : '')
+        + (d.click.battery != null ? ' · ' + d.click.battery + '%' : '');
+    } else if (d.click.err) cs = d.click.err;
+    else cs = 'Niet verbonden.';
+  }
+  $('clickState').textContent = cs;
+
+  const fan = d.fan;
+  $('fanCard').style.display = fan ? 'flex' : 'none';
+  if (fan) {
+    let ft = fan.host + ' · ';
+    if (!fan.on) ft += 'uit';
+    else if (!fan.connected) ft += fan.err ? 'geen verbinding: ' + fan.err : 'geen verbinding';
+    else ft += fan.level ? 'stand ' + fan.level : 'uit (weinig vermogen)';
+    $('fanInfo').textContent = ft;
+    const fb = $('fanToggle');
+    fb.textContent = fan.on ? 'Ventilator uitzetten' : 'Ventilator aanzetten';
+    fb.className = fan.on ? 'ghost' : '';
+    fb.onclick = async () => {
+      try {
+        await post('/settings', {fan_on: !fan.on});
+        setMsg('Ventilator bijgewerkt.');
+        poll();
+      } catch (e) {
+        setMsg('Ventilator mislukt: ' + e.message, true);
+      }
+    };
+  }
+
+  renderRemote(d.remote || LANURL);
+}
+
+async function poll(){
+  if (document.hidden || busy) return;
+  busy = true;
+  try {
+    const r = await fetch('/devices', {cache: 'no-store'});
+    const d = await r.json();
+    if (!r.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + r.status));
+    render(d);
+    if (d.error) setMsg('Scanfout: ' + d.error, true);
+    else setMsg('');
+  } catch (e) {
+    $('dot').className = 'dot';
+    $('connText').textContent = 'geen verbinding met server';
+    setMsg('Scannen mislukt: ' + e.message, true);
+  } finally {
+    busy = false;
+  }
+}
+
+function startPolling(){
+  if (timer) clearInterval(timer);
+  timer = setInterval(poll, 3000);
+  poll();
+}
+
+document.querySelectorAll('[data-auto]').forEach(b => {
+  b.onclick = async () => {
+    const body = {};
+    body[b.dataset.auto] = null;
+    try {
+      await post('/devices/select', body);
+      setMsg('Automatisch ingesteld.');
+      poll();
+    } catch (e) {
+      setMsg('Instellen mislukt: ' + e.message, true);
+    }
+  };
+});
+
+document.querySelector('[data-hr-off]').onclick = async () => {
+  try {
+    await post('/devices/select', {hr: '__off'});
+    setMsg('Hartslag uitgezet.');
+    poll();
+  } catch (e) {
+    setMsg('Hartslag uitzetten mislukt: ' + e.message, true);
+  }
+};
+
+$('copy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($('remoteLink').href);
+    setMsg('Link gekopieerd.');
+  } catch (e) {
+    setMsg('Kopiëren mislukt.', true);
+  }
+};
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (timer) { clearInterval(timer); timer = null; }
+  } else {
+    startPolling();
+  }
+});
+startPolling();
+</script></body></html>
