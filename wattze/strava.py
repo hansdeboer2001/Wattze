@@ -150,7 +150,10 @@ def upload_tcx(file_path, name="", description=""):
     def add_field(k, v):
         parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode())
     add_field("data_type", "tcx")
-    add_field("name", name or os.path.basename(file_path))
+    title = (name or "").strip() or "Rit"
+    if not title.lower().startswith("wattze"):
+        title = "Wattze - " + title
+    add_field("name", title)
     add_field("trainer", "1")
     if description:
         add_field("description", description)

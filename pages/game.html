@@ -192,7 +192,7 @@ a{color:#4da3ff;font-size:13px}
 <div id="edgeRiders"></div>
 <button type="button" id="btnStop">Stop</button>
 <button type="button" id="btnSim" title="Simuleer een vast vermogen in plaats van de trainer">Sim</button>
-<div id="simPanel"><button type="button" class="ghost" id="simDown">&minus;</button><input id="simW" type="number" min="0" max="2000" step="10" value="200"><span>W</span><button type="button" class="ghost" id="simUp">+</button><button type="button" id="simToggle">Aan</button></div>
+<div id="simPanel"><button type="button" class="ghost" id="simDown">&minus;</button><input id="simW" type="number" min="0" max="2000" step="10" value="200"><span>W</span><button type="button" class="ghost" id="simUp">+</button><button type="button" class="ghost" id="simCadDown">&minus;</button><input id="simCad" type="number" min="0" max="200" step="5" value="90"><span>rpm</span><button type="button" class="ghost" id="simCadUp">+</button><button type="button" id="simToggle">Aan</button></div>
 <button type="button" id="btnFs" title="Volledig scherm">&#x26F6;</button>
 <div id="rideStrip"><span class="rs"><span class="ic">&#9201;</span><b id="rTime">0:00</b><span class="l">TIJD</span></span><span class="rs"><span class="ic">&#9873;</span><b id="rDist">0.00</b><span class="l">KM</span></span><span class="rs"><span class="ic">&#9650;</span><b id="rClimb">0</b><span class="l">HM</span></span><span id="rExtra" style="font-size:13px;font-weight:600;color:#ffd24d"></span></div>
 <div id="segBar"><span id="segBarName">KOM</span><div id="segBarTrack"><div id="segBarFill"></div></div><span id="segBarTime">0:00</span></div>
@@ -351,7 +351,7 @@ let vgear=__VGEAR__;
 let CLICK={want:true,connected:false,battery:null,err:''};
 let course={pts:[],step:25,total:20000,km:20,seed:7,gain:0,minE:0,maxE:0,name:'Vrije route',segs:null,blurb:null};
 const es=new EventSource('/events');
-es.onmessage=e=>{const d=JSON.parse(e.data);power=simOn?simW():d.power;cadence=d.cadence;hr=d.hr||0;
+es.onmessage=e=>{const d=JSON.parse(e.data);power=simOn?simW():d.power;cadence=simOn?simC():d.cadence;hr=d.hr||0;
   if(typeof d.gear==='number'&&d.gear!==vgear){vgear=d.gear;lastPostG=999;lastPostT=0;gearLabel();}
   if(typeof d.gear_max==='number'&&d.gear_max!==VGEAR_MAX){
     VGEAR_MAX=d.gear_max;VGEAR_STEP=11/Math.max(1,VGEAR_MAX-1);
@@ -3096,11 +3096,13 @@ document.getElementById('btnStop').onclick=()=>{pauseRide();};
 let simOn=false;
 const simIn=document.getElementById('simW');
 function simW(){const v=parseInt(simIn.value,10);return isFinite(v)?Math.max(0,Math.min(2000,v)):0;}
+const simCadIn=document.getElementById('simCad');
+function simC(){const v=parseInt(simCadIn.value,10);return isFinite(v)?Math.max(0,Math.min(200,v)):0;}
 function simApply(){
   document.getElementById('btnSim').classList.toggle('on',simOn);
-  document.getElementById('btnSim').textContent=simOn?'Sim '+simW()+'W':'Sim';
+  document.getElementById('btnSim').textContent=simOn?'Sim '+simW()+'W '+simC()+'rpm':'Sim';
   document.getElementById('simToggle').textContent=simOn?'Uit':'Aan';
-  if(simOn)power=simW();
+  if(simOn){power=simW();cadence=simC();}
 }
 // Sim alleen voor testen: zichtbaar via /game?sim=1
 if(new URLSearchParams(location.search).get('sim')==='1')document.getElementById('btnSim').style.display='block';
@@ -3112,6 +3114,9 @@ document.getElementById('simToggle').onclick=()=>{simOn=!simOn;if(simOn&&running
 document.getElementById('simDown').onclick=()=>{simIn.value=Math.max(0,simW()-10);simApply();};
 document.getElementById('simUp').onclick=()=>{simIn.value=Math.min(2000,simW()+10);simApply();};
 simIn.oninput=simApply;
+document.getElementById('simCadDown').onclick=()=>{simCadIn.value=Math.max(0,simC()-5);simApply();};
+document.getElementById('simCadUp').onclick=()=>{simCadIn.value=Math.min(200,simC()+5);simApply();};
+simCadIn.oninput=simApply;
 document.addEventListener('keydown',e=>{
   if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))return;
   if(e.key==='Escape'){
