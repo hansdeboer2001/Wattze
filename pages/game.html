@@ -21,7 +21,7 @@ canvas{width:100%;background:#0b0e14;border-radius:10px;display:block}
 #btnFs,#btnStop{position:absolute;top:16px;z-index:8;background:rgba(16,20,28,.82);border:2px solid #f4f6f8;color:#fff;border-radius:10px;padding:4px 10px;font-size:16px;line-height:1;cursor:pointer}
 #btnFs{right:16px}
 #btnStop{right:58px;font-size:14px;padding:6px 10px}
-#btnSim{position:absolute;top:16px;right:124px;z-index:8;background:rgba(16,20,28,.82);border:2px solid #f4f6f8;color:#fff;border-radius:10px;font-size:14px;padding:6px 10px;line-height:1;cursor:pointer}
+#btnSim{display:none;position:absolute;top:16px;right:124px;z-index:8;background:rgba(16,20,28,.82);border:2px solid #f4f6f8;color:#fff;border-radius:10px;font-size:14px;padding:6px 10px;line-height:1;cursor:pointer}
 #btnSim.on{background:#c77700;border-color:#ffd24d}
 #simPanel{display:none;position:absolute;top:60px;right:16px;z-index:9;background:rgba(16,20,28,.94);border:2px solid #f4f6f8;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;align-items:center;gap:6px}
 #simPanel input{width:70px;font-size:16px;padding:4px 6px;background:#0b0e14;color:#fff;border:1px solid #555;border-radius:6px;text-align:right}
@@ -3102,6 +3102,8 @@ function simApply(){
   document.getElementById('simToggle').textContent=simOn?'Uit':'Aan';
   if(simOn)power=simW();
 }
+// Sim alleen voor testen: zichtbaar via /game?sim=1
+if(new URLSearchParams(location.search).get('sim')==='1')document.getElementById('btnSim').style.display='block';
 document.getElementById('btnSim').onclick=()=>{
   const p=document.getElementById('simPanel');
   p.style.display=p.style.display==='flex'?'none':'flex';
