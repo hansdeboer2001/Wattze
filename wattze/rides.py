@@ -117,7 +117,7 @@ def rec_stop():
                          "avg_w": round(avg), "max_w": mx, "avg_hr": avg_hr,
                          "size": os.path.getsize(path)})
         save_index(rides)
-        return {"ok": True, "file": fname, "duration": round(dur),
+        return {"ok": True, "file": fname, "name": name, "duration": round(dur),
                 "distance": round(dist), "avg_w": round(avg), "max_w": mx,
                 "avg_hr": avg_hr}
 

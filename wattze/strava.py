@@ -5,8 +5,31 @@ import urllib.parse
 import urllib.request
 import uuid
 
+<<<<<<< HEAD
 STRAVA_CLIENT_ID = "294425"
 STRAVA_CLIENT_SECRET = "5da497ad056a250280439454b89be990f41aed9d"
+=======
+def _load_env_file():
+    # Simple .env reader (KEY=VALUE per line) next to the app; real env vars take precedence.
+    try:
+        from wattze.state import APP_DIR
+        path = os.path.join(APP_DIR, ".env")
+        if not os.path.isfile(path):
+            return
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    except Exception:
+        pass
+
+_load_env_file()
+STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID", "")
+STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "")
+>>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
 STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize"
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_UPLOAD_URL = "https://www.strava.com/api/v3/uploads"
@@ -119,7 +142,11 @@ def get_token():
         return None
     return data.get("access_token")
 
+<<<<<<< HEAD
 def upload_tcx(file_path, name=""):
+=======
+def upload_tcx(file_path, name="", description=""):
+>>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
     token = get_token()
     if not token:
         raise RuntimeError("Niet verbonden met Strava")
@@ -132,8 +159,18 @@ def upload_tcx(file_path, name=""):
     def add_field(k, v):
         parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode())
     add_field("data_type", "tcx")
+<<<<<<< HEAD
     add_field("name", name or os.path.basename(file_path))
     add_field("trainer", "1")
+=======
+    title = (name or "").strip() or "Rit"
+    if not title.lower().startswith("wattze"):
+        title = "Wattze - " + title
+    add_field("name", title)
+    add_field("trainer", "1")
+    if description:
+        add_field("description", description)
+>>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
     add_field("external_id", os.path.basename(file_path))
     parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{os.path.basename(file_path)}\"\r\nContent-Type: application/vnd.garmin.tcx+xml\r\n\r\n".encode())
     parts.append(file_data)
@@ -145,3 +182,29 @@ def upload_tcx(file_path, name=""):
     req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode())
+<<<<<<< HEAD
+=======
+
+
+def upload_status(upload_id):
+    token = get_token()
+    if not token:
+        raise RuntimeError("Niet verbonden met Strava")
+    req = urllib.request.Request(f"{STRAVA_UPLOAD_URL}/{int(upload_id)}")
+    req.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode())
+
+
+def wait_for_activity(upload_id, timeout=30):
+    """Poll the upload until Strava has turned it into an activity. Returns (activity_id, error)."""
+    end = time.time() + timeout
+    while time.time() < end:
+        st = upload_status(upload_id)
+        if st.get("error"):
+            return None, st["error"]
+        if st.get("activity_id"):
+            return st["activity_id"], None
+        time.sleep(2)
+    return None, None
+>>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
