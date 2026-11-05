@@ -86,6 +86,7 @@ async function load(){
         if(j.ok){
           btn.textContent = 'Geüpload \u2713';
           btn.style.background = '#1a7a3a';
+          if(j.url){const o=document.createElement('a');o.href=j.url;o.target='_blank';o.rel='noopener';o.textContent=' Open op Strava';o.style.marginLeft='8px';td.appendChild(o);}
         } else {
           btn.textContent = 'Fout';
           alert(j.error || 'Upload mislukt');
@@ -100,6 +101,7 @@ async function load(){
       }
     };
     td.appendChild(btn);
+    if(r.shot){const s=document.createElement('a');s.href='/ritten/screenshot?f='+encodeURIComponent(r.file.replace(/\.tcx$/,'.png'));s.textContent=' Screenshot';s.style.marginLeft='8px';td.appendChild(s);}
     tr.appendChild(td);
     tb.appendChild(tr);
   });

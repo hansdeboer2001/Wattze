@@ -4,7 +4,8 @@ Wattze is een lokale wielerapp voor een smart trainer. De app draait op je pc,
 verbindt via Bluetooth LE met je trainer (en optioneel een hartslagband en Zwift
 Click) en toont alles in de browser op `http://localhost:8080`.
 
-Alles blijft lokaal: geen account, geen cloud en geen abonnement.
+Alles blijft lokaal: geen account, geen cloud en geen abonnement. Alleen als je
+zelf de Strava-koppeling gebruikt, gaan ritten naar Strava.
 
 ## Wat kun je ermee
 
@@ -18,6 +19,8 @@ Alles blijft lokaal: geen account, geen cloud en geen abonnement.
 - **Live** (`/live`) — groot, rustig live-scherm voor naast de fiets.
 - **Mijn ritten** (`/ritten`) — opgenomen ritten bekijken en downloaden als TCX
   (o.a. voor Strava of Garmin).
+- **Strava upload** (`/uploadstrava`) — ritten direct naar Strava sturen, of na
+  een rit meteen met **Opslaan + Strava**. Zie [Strava-koppeling](#strava-koppeling).
 - **Apparaten** (`/start`) — trainer, hartslagmeter en Zwift Click kiezen, plus
   een QR-code voor de telefoonafstandsbediening.
 - **Afstandsbediening** (`/afstandsbediening`) — versnellingen en ventilator
@@ -75,6 +78,7 @@ Open daarna `http://localhost:8080/start` om je apparaten te kiezen.
 | `/game` | Ride: rit met hellingbesturing, routes en KOM's |
 | `/blokjes` | Intervaltrainingen (ERG) maken en starten |
 | `/ritten` | Opgenomen ritten en TCX-download |
+| `/uploadstrava` | Verbinden met Strava en ritten uploaden |
 | `/start` | Apparaten kiezen en telefoon-QR |
 | `/afstandsbediening` (of `/remote`) | Telefoonafstandsbediening |
 | `/instellingen` | Instellingen |
@@ -107,11 +111,49 @@ Zonder argumenten opent het script een bestandsvenster en schrijft het resultaat
 naar `routes/<naam>.json`. Bestaande routes behouden hun id, naam en KOM's;
 alleen het hoogteprofiel wordt bijgewerkt.
 
+## Strava-koppeling
+
+Wattze kan ritten direct naar je eigen Strava-account uploaden. De koppeling
+gebruikt de Strava-app "Wattze", die door maximaal 10 rijders gebruikt kan
+worden.
+
+### Instellen
+
+1. **Vraag het `.env`-bestand op bij Hans.** Daarin staan de client-ID en het
+   client secret van de Wattze-app op Strava. Je krijgt het privé
+   toegestuurd.
+2. **Zet `.env` in de projectmap** (naast `wattze_game.py`). Gebruik je de
+   gebouwde versie, zet hem dan naast `Wattze.exe`. Het bestand ziet er zo uit:
+
+   ```
+   STRAVA_CLIENT_ID=...
+   STRAVA_CLIENT_SECRET=...
+   ```
+
+3. **Start Wattze (opnieuw).** De `.env` wordt alleen bij het opstarten gelezen.
+4. **Open `http://localhost:8080/uploadstrava`** en klik op **Verbinden met
+   Strava**. Log in met je *eigen* Strava-account en geef toestemming.
+
+Daarna zie je na elke rit (in Ride en bij Blokjes) de knop **Opslaan + Strava**.
+Oudere ritten upload je via `/uploadstrava`.
+
+### Belangrijk
+
+- **Deel `.env` niet en zet hem nooit in git.** Hij staat in `.gitignore`.
+  Iedereen met het secret kan zich voordoen als de Wattze-app.
+- **Open Wattze via `localhost`**, niet via een IP-adres. Strava stuurt je na
+  het inloggen alleen terug naar `localhost`.
+- Je Strava-login wordt per pc bewaard in `WattzeRitten/config.json`. Elke
+  rijder uploadt dus naar zijn of haar eigen account.
+- Wil je stoppen, trek dan de toegang in via Strava → Instellingen → Mijn apps.
+  Dan komt er een plek vrij voor een ander.
+- Zonder `.env` werkt Wattze gewoon, alleen zonder Strava.
+
 ## Ritten en gegevens
 
 Opgeslagen gegevens staan in `WattzeRitten/` (automatisch aangemaakt):
 
-- `config.json` — apparaatkeuze en instellingen.
+- `config.json` — apparaatkeuze, instellingen en je Strava-login.
 - `rides.json` — index van opgenomen ritten.
 - `koms.json` — KOM-tijden.
 - `*.tcx` — de opgenomen ritten.

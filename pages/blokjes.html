@@ -75,7 +75,7 @@ input,select{background:#222c44;color:#eee;border:1px solid #444;border-radius:6
 <div id="stopSave" style="display:none;margin-top:14px;padding:12px;background:#0b0e14;border-radius:8px;text-align:left">
 <div id="stopSaveTitle" style="font-size:14px;color:#ddd;margin-bottom:6px">Deze rit is opgenomen. Opslaan of negeren?</div>
 <div id="stopSaveInfo" style="font-size:12px;color:#777;margin-bottom:4px"></div>
-<div class="row" id="stopSaveRow"><button id="btnStopSave">Opslaan</button><button class="ghost" id="btnStopDrop">Negeren</button></div>
+<div class="row" id="stopSaveRow"><button id="btnStopSave">Opslaan</button><button id="btnStopStrava" style="display:none;background:#fc4c02">Opslaan + Strava</button><button class="ghost" id="btnStopDrop">Negeren</button></div>
 </div>
 <div class="row" id="stopGoRow"><button id="btnContinue">Hervatten</button><button class="ghost" id="btnEndRide">Beëindigen</button></div>
 <div class="row"><button id="btnDash">Dashboard</button></div>
@@ -530,6 +530,16 @@ function endHeld(){
   fetch('/ritten/stop',{method:'POST'}).then(r=>r.json()).then(d=>{
     if(!d||!d.ok||!d.file){saveState('Geen opname om op te slaan.');return;}
     pendingRide=d;
+    const avgA=pl.cntA?Math.round(pl.sumA/pl.cntA):0;
+    d.description='Blokjes-training in Wattze: '+(wkName||'Training')+'\nGemeten gem '+avgA+' W · Max '+Math.round(pl.maxA||0)+' W · '+fmtT(pl.t)+' van '+fmtT(pl.total);
+    try{
+      const shot=document.getElementById('stopChart').toDataURL('image/png');
+      d.shot=true;
+      fetch('/ritten/screenshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:d.file,png:shot})}).catch(()=>{});
+    }catch(e){}
+    fetch('/strava/status').then(x=>x.json()).then(s=>{
+      document.getElementById('btnStopStrava').style.display=s.connected?'':'none';
+    }).catch(()=>{});
     const km=((d.distance||0)/1000).toFixed(1).replace('.',',');
     document.getElementById('stopSaveInfo').innerHTML='<b>'+fmtT(d.duration||0)+'</b> &middot; '+km+' km<br><span style="font-size:12px;color:#777">'+d.file+'</span>';
     document.getElementById('stopSave').style.display='block';
@@ -540,6 +550,21 @@ document.getElementById('btnStopCorner').onclick=()=>openStop();
 document.getElementById('btnContinue').onclick=()=>continueWorkout();
 document.getElementById('btnEndRide').onclick=()=>endHeld();
 document.getElementById('btnStopSave').onclick=()=>{pendingRide=null;saveState('Opgeslagen in Mijn ritten.');};
+document.getElementById('btnStopStrava').onclick=async()=>{
+  const r=pendingRide;if(!r)return;
+  pendingRide=null;
+  saveState('Uploaden naar Strava...');
+  try{
+    const d=await(await fetch('/strava/upload',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({file:r.file,name:r.name||wkName||'',description:r.description||''})})).json();
+    if(!d.ok){saveState('Opgeslagen, maar Strava-upload mislukt: '+(d.error||'onbekend'));return;}
+    saveState('Opgeslagen en naar Strava gestuurd.');
+    const links=[];
+    if(d.url)links.push('<a href="'+d.url+'" target="_blank" rel="noopener">Open op Strava</a>');
+    if(r.shot)links.push('<a href="/ritten/screenshot?f='+encodeURIComponent(r.file.replace(/\.tcx$/,'.png'))+'" download>Screenshot downloaden</a>');
+    if(links.length)document.getElementById('stopSaveInfo').innerHTML+='<br>'+links.join(' &middot; ');
+  }catch(e){saveState('Opgeslagen, maar Strava-upload mislukt (netwerk).');}
+};
 document.getElementById('btnStopDrop').onclick=async()=>{
   const r=pendingRide;
   if(!r){saveState('Rit niet opgeslagen.');return;}

@@ -181,7 +181,23 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(500, "text/plain", ("qr-fout: %s" % e).encode())
             self._send(200, "image/svg+xml", buf.getvalue())
         elif self.path == "/ritten/list":
-            self._json({"rides": load_index()})
+            rides = load_index()
+            for r in rides:
+                r["shot"] = os.path.isfile(os.path.join(RIDE_DIR, str(r.get("file", ""))[:-4] + ".png"))
+            self._json({"rides": rides})
+        elif path == "/ritten/screenshot":
+            fn = os.path.basename(parse_qs(urlparse(self.path).query).get("f", [""])[0])
+            spath = os.path.join(RIDE_DIR, fn)
+            if not fn.endswith(".png") or not os.path.isfile(spath):
+                return self._send(404, "text/plain", b"not found")
+            with open(spath, "rb") as f:
+                data = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Disposition", f'attachment; filename="{fn}"')
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
         elif path == "/uploadstrava":
             self._send(200, "text/html; charset=utf-8", render_page(load_page("uploadstrava.html")).encode())
         elif path == "/strava/status":
@@ -540,6 +556,10 @@ class Handler(BaseHTTPRequestHandler):
                 os.remove(path)
             except OSError:
                 return self._json({"ok": False, "error": "wissen mislukt"}, 500)
+            try:
+                os.remove(path[:-4] + ".png")
+            except OSError:
+                pass
             save_index([r for r in load_index() if r.get("file") != fn])
             return self._json({"ok": True})
         if self.path == "/strava/upload":
@@ -548,8 +568,27 @@ class Handler(BaseHTTPRequestHandler):
             if not fn.endswith(".tcx") or not os.path.isfile(path):
                 return self._json({"ok": False, "error": "niet gevonden"}, 404)
             try:
-                res = strava.upload_tcx(path, str(body.get("name") or ""))
+                res = strava.upload_tcx(path, str(body.get("name") or ""),
+                                        str(body.get("description") or "")[:2000])
+                activity_id, err = strava.wait_for_activity(res.get("id")) if res.get("id") else (None, None)
             except Exception as e:
                 return self._json({"ok": False, "error": str(e)}, 502)
-            return self._json({"ok": True, "upload": res})
+            if err:
+                return self._json({"ok": False, "error": err}, 502)
+            return self._json({"ok": True, "activity_id": activity_id,
+                               "url": "https://www.strava.com/activities/%s" % activity_id if activity_id else ""})
+        if self.path == "/ritten/screenshot":
+            fn = os.path.basename(str(body.get("file") or ""))
+            data = str(body.get("png") or "")
+            prefix = "data:image/png;base64,"
+            if not fn.endswith(".tcx") or not os.path.isfile(os.path.join(RIDE_DIR, fn)) or not data.startswith(prefix):
+                return self._json({"ok": False, "error": "ongeldig"}, 400)
+            import base64
+            try:
+                png = base64.b64decode(data[len(prefix):], validate=True)
+            except ValueError:
+                return self._json({"ok": False, "error": "ongeldig"}, 400)
+            with open(os.path.join(RIDE_DIR, fn[:-4] + ".png"), "wb") as f:
+                f.write(png)
+            return self._json({"ok": True})
         return self._json({"ok": False}, 404)

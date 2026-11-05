@@ -137,7 +137,7 @@ def get_token():
         return None
     return data.get("access_token")
 
-def upload_tcx(file_path, name=""):
+def upload_tcx(file_path, name="", description=""):
     token = get_token()
     if not token:
         raise RuntimeError("Niet verbonden met Strava")
@@ -152,6 +152,8 @@ def upload_tcx(file_path, name=""):
     add_field("data_type", "tcx")
     add_field("name", name or os.path.basename(file_path))
     add_field("trainer", "1")
+    if description:
+        add_field("description", description)
     add_field("external_id", os.path.basename(file_path))
     parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{os.path.basename(file_path)}\"\r\nContent-Type: application/vnd.garmin.tcx+xml\r\n\r\n".encode())
     parts.append(file_data)
@@ -163,3 +165,26 @@ def upload_tcx(file_path, name=""):
     req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode())
+
+
+def upload_status(upload_id):
+    token = get_token()
+    if not token:
+        raise RuntimeError("Niet verbonden met Strava")
+    req = urllib.request.Request(f"{STRAVA_UPLOAD_URL}/{int(upload_id)}")
+    req.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode())
+
+
+def wait_for_activity(upload_id, timeout=30):
+    """Poll the upload until Strava has turned it into an activity. Returns (activity_id, error)."""
+    end = time.time() + timeout
+    while time.time() < end:
+        st = upload_status(upload_id)
+        if st.get("error"):
+            return None, st["error"]
+        if st.get("activity_id"):
+            return st["activity_id"], None
+        time.sleep(2)
+    return None, None
