@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 from wattze.ble_wattze import scan_devices, scan_devices_cached
+from wattze import strava
 from wattze.fan import fan_cmd
 from wattze.pages import *
 from wattze.rides import *
@@ -181,6 +182,33 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "image/svg+xml", buf.getvalue())
         elif self.path == "/ritten/list":
             self._json({"rides": load_index()})
+        elif path == "/uploadstrava":
+            self._send(200, "text/html; charset=utf-8", render_page(load_page("uploadstrava.html")).encode())
+        elif path == "/strava/status":
+            t = strava.load_tokens()
+            self._json({"connected": bool(t.get("access_token")), "athlete": t.get("athlete") or "",
+                        "configured": bool(strava.STRAVA_CLIENT_ID and strava.STRAVA_CLIENT_SECRET)})
+        elif path == "/strava/auth":
+            if not (strava.STRAVA_CLIENT_ID and strava.STRAVA_CLIENT_SECRET):
+                return self._send(500, "text/plain; charset=utf-8",
+                                  "STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET ontbreken (zie .env.example)".encode())
+            host = self.headers.get("Host") or "localhost:%d" % PORT
+            self.send_response(302)
+            self.send_header("Location", strava.auth_url("http://%s/strava/callback" % host))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        elif path == "/strava/callback":
+            code = parse_qs(urlparse(self.path).query).get("code", [""])[0]
+            if not code:
+                return self._send(400, "text/plain; charset=utf-8", "Geen toestemming van Strava".encode())
+            try:
+                strava.exchange_code(code)
+            except Exception as e:
+                return self._send(502, "text/plain; charset=utf-8", ("Strava-fout: %s" % e).encode())
+            self.send_response(302)
+            self.send_header("Location", "/uploadstrava")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
         elif self.path.startswith("/ritten/download"):
             q = parse_qs(urlparse(self.path).query)
             fn = os.path.basename(q.get("f", [""])[0])
@@ -514,4 +542,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "error": "wissen mislukt"}, 500)
             save_index([r for r in load_index() if r.get("file") != fn])
             return self._json({"ok": True})
+        if self.path == "/strava/upload":
+            fn = os.path.basename(str(body.get("file") or ""))
+            path = os.path.join(RIDE_DIR, fn)
+            if not fn.endswith(".tcx") or not os.path.isfile(path):
+                return self._json({"ok": False, "error": "niet gevonden"}, 404)
+            try:
+                res = strava.upload_tcx(path, str(body.get("name") or ""))
+            except Exception as e:
+                return self._json({"ok": False, "error": str(e)}, 502)
+            return self._json({"ok": True, "upload": res})
         return self._json({"ok": False}, 404)
