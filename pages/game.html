@@ -127,6 +127,12 @@ a{color:#4da3ff;font-size:13px}
 #distRow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
 #distRow .ghost{padding:6px 12px;font-size:13px}
 #routeGrid{display:flex;flex-direction:column;gap:2px}
+#routeTools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0;color:#9aa3b5}
+#routeTools input,#routeTools select{background:#222c44;color:#e7eaf0;border:1px solid #3a4a68;border-radius:6px;padding:7px 8px;font:inherit;font-size:13px}
+#routeTools input[type=search]{min-width:190px}
+#routeTools input[type=number]{width:92px}
+#routeTools label{display:flex;align-items:center;gap:5px;font-size:13px}
+#routeCount{font-size:12px;margin-left:auto}
 .rgrp{font-size:11px;color:#6f7a90;text-transform:uppercase;letter-spacing:.06em;margin:10px 2px 6px}
 .rrowWrap{position:relative;margin-bottom:8px}
 .rrow{display:flex;gap:10px;overflow-x:auto;scroll-behavior:smooth;padding:2px 2px 8px;scrollbar-width:thin}
@@ -255,6 +261,16 @@ a{color:#4da3ff;font-size:13px}
 <button class="ghost" id="btnSaveRoute" title="Dit parcours bewaren als eigen route">Opslaan</button>
 </div>
 </div>
+</div>
+<div id="routeTools">
+<input id="routeSearch" type="search" placeholder="Zoek route..." aria-label="Zoek route">
+<input id="routeMinKm" type="number" min="0" step="1" placeholder="Min km" aria-label="Minimale afstand">
+<input id="routeMaxKm" type="number" min="0" step="1" placeholder="Max km" aria-label="Maximale afstand">
+<input id="routeMinHm" type="number" min="0" step="50" placeholder="Min hm" aria-label="Minimale hoogtemeters">
+<input id="routeMaxHm" type="number" min="0" step="50" placeholder="Max hm" aria-label="Maximale hoogtemeters">
+<select id="routeSort" aria-label="Sorteer routes"><option value="default">Standaardvolgorde</option><option value="name">Naam</option><option value="distance">Afstand</option><option value="elevation">Hoogtemeters</option></select>
+<label><input id="routeFavOnly" type="checkbox"> Favorieten</label>
+<span id="routeCount"></span>
 </div>
 <div id="routeGrid"></div>
 <div id="routeDetail">
@@ -658,8 +674,32 @@ function selectRoute(r){
 }
 function routeWorld(r){
   if(!r.fixed)return '';
+  if(r.world)return r.world;
   const a=((r.blurb||'').split(' · ')[0]||'').trim();
   return (!a||/^[\d.,]+\s*km$/i.test(a))?'Overig':a;
+}
+const routeFilter={q:'',minKm:'',maxKm:'',minHm:'',maxHm:'',sort:'default',fav:false};
+let routeFiltersWired=false;
+function routeNumber(id){const v=parseFloat(document.getElementById(id).value);return Number.isFinite(v)?v:null;}
+function routeMeta(r){
+  const c=routeProfile(r);
+  return {route:r,course:c,km:c.km,hm:c.gain};
+}
+function wireRouteFilters(){
+  if(routeFiltersWired)return;
+  routeFiltersWired=true;
+  const redraw=()=>{
+    routeFilter.q=document.getElementById('routeSearch').value.trim().toLowerCase();
+    routeFilter.minKm=document.getElementById('routeMinKm').value;
+    routeFilter.maxKm=document.getElementById('routeMaxKm').value;
+    routeFilter.minHm=document.getElementById('routeMinHm').value;
+    routeFilter.maxHm=document.getElementById('routeMaxHm').value;
+    routeFilter.sort=document.getElementById('routeSort').value;
+    routeFilter.fav=document.getElementById('routeFavOnly').checked;
+    buildRouteCards();
+  };
+  ['routeSearch','routeMinKm','routeMaxKm','routeMinHm','routeMaxHm','routeSort','routeFavOnly']
+    .forEach(id=>document.getElementById(id).addEventListener('input',redraw));
 }
 function favIds(){
   try{const a=JSON.parse(localStorage.getItem('route_favs')||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}
@@ -676,11 +716,26 @@ function toggleFav(id){
   if(nr)nr.scrollLeft=sl;
 }
 function buildRouteCards(){
+  wireRouteFilters();
   const grid=document.getElementById('routeGrid');
   grid.innerHTML='';
-  ROUTES.forEach(r=>{r.world=routeWorld(r);});
   const favs=favIds();
-  const fixed=ROUTES.filter(r=>r.fixed).sort((a,b)=>(favs.indexOf(b.id)>=0)-(favs.indexOf(a.id)>=0));
+  const metas=ROUTES.filter(r=>r.fixed).map(routeMeta);
+  const minKm=routeNumber('routeMinKm'),maxKm=routeNumber('routeMaxKm'),minHm=routeNumber('routeMinHm'),maxHm=routeNumber('routeMaxHm');
+  let filtered=metas.filter(m=>
+    (!routeFilter.q||m.course.name.toLowerCase().includes(routeFilter.q))&&
+    (minKm==null||m.km>=minKm)&&(maxKm==null||m.km<=maxKm)&&
+    (minHm==null||m.hm>=minHm)&&(maxHm==null||m.hm<=maxHm)&&
+    (!routeFilter.fav||favs.indexOf(m.route.id)>=0));
+  filtered.sort((a,b)=>{
+    if(routeFilter.sort==='name')return a.course.name.localeCompare(b.course.name,'nl');
+    if(routeFilter.sort==='distance')return a.km-b.km;
+    if(routeFilter.sort==='elevation')return a.hm-b.hm;
+    const af=favs.indexOf(a.route.id)>=0,bf=favs.indexOf(b.route.id)>=0;
+    return (bf?1:0)-(af?1:0);
+  });
+  document.getElementById('routeCount').textContent=filtered.length+' van '+metas.length+' routes';
+  if(!filtered.length){grid.innerHTML='<div style="padding:16px;color:#9aa3b5">Geen routes gevonden.</div>';return;}
   const g=document.createElement('div');g.className='rgroup';
   g.innerHTML='<div class="rrowWrap">'+
     '<button type="button" class="rscroll l" aria-label="Naar links">&#8249;</button>'+
@@ -689,8 +744,8 @@ function buildRouteCards(){
   grid.appendChild(g);
   const row=g.querySelector('.rrow');
   wireRow(row,g.querySelector('.rscroll.l'),g.querySelector('.rscroll.r'));
-  fixed.forEach(r=>{
-    const c=routeProfile(r),fav=isFav(r.id),card=document.createElement('div');
+  filtered.forEach(m=>{
+    const r=m.route,c=m.course,fav=isFav(r.id),card=document.createElement('div');
     card.className='rcard'+(r.id===route?' sel':'');card.dataset.route=r.id;card._course=c;
     card.innerHTML='<button type="button" class="rfav'+(fav?' on':'')+'" aria-label="Favoriet">'+(fav?'&#9733;':'&#9734;')+'</button>'+
       '<canvas></canvas><div class="rcn"></div><div class="rcm"></div>';
