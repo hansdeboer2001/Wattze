@@ -9,6 +9,7 @@ from wattze.storage import load_index, save_index, slugify
 
 TCX_NS = "{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}"
 PROGRESS_CACHE = os.path.join(RIDE_DIR, "progress-cache.json")
+PROGRESS_EXCLUDED = os.path.join(RIDE_DIR, "progress-excluded.json")
 
 def fmt_time(t):
     return datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -193,7 +194,41 @@ def _best_power_window(samples, seconds):
     return best
 
 
-def _progress_signature(rides):
+def _load_progress_excluded():
+    try:
+        with open(PROGRESS_EXCLUDED, encoding="utf-8") as f:
+            data = json.load(f)
+        return {str(x) for x in data} if isinstance(data, list) else set()
+    except (OSError, ValueError, TypeError):
+        return set()
+
+
+def _save_progress_excluded(excluded):
+    tmp = PROGRESS_EXCLUDED + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(sorted(excluded), f, ensure_ascii=False)
+    os.replace(tmp, PROGRESS_EXCLUDED)
+
+
+def progress_rides():
+    excluded = _load_progress_excluded()
+    result = []
+    for ride in load_index():
+        item = dict(ride)
+        item["excluded"] = str(ride.get("file") or "") in excluded
+        item["suspicious"] = int(ride.get("max_w") or 0) > 3000
+        result.append(item)
+    return result
+
+
+def set_progress_excluded(files):
+    available = {str(r.get("file") or "") for r in load_index()}
+    excluded = {str(f) for f in (files or []) if str(f) in available}
+    _save_progress_excluded(excluded)
+    return progress_rides()
+
+
+def _progress_signature(rides, excluded):
     sig = []
     for ride in rides:
         name = os.path.basename(str(ride.get("file") or ""))
@@ -203,7 +238,7 @@ def _progress_signature(rides):
             sig.append([name, st.st_size, st.st_mtime_ns])
         except OSError:
             sig.append([name, None, None])
-    return sig
+    return {"rides": sig, "excluded": sorted(excluded)}
 
 
 def progress_summary():
@@ -213,7 +248,8 @@ def progress_summary():
                         "recent_date": "", "recent_name": ""}
                for seconds, label in durations}
     rides = load_index()
-    signature = _progress_signature(rides)
+    excluded = _load_progress_excluded()
+    signature = _progress_signature(rides, excluded)
     try:
         with open(PROGRESS_CACHE, encoding="utf-8") as f:
             cached = json.load(f)
@@ -224,6 +260,8 @@ def progress_summary():
     totals = {"rides": 0, "duration": 0, "distance": 0, "avg_w": 0}
     recent_since = time.time() - 30 * 86400
     for ride in rides:
+        if str(ride.get("file") or "") in excluded:
+            continue
         path = os.path.join(RIDE_DIR, os.path.basename(str(ride.get("file") or "")))
         if not os.path.isfile(path):
             continue

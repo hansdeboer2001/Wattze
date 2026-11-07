@@ -94,6 +94,8 @@ class Handler(BaseHTTPRequestHandler):
                         "vgear": gear["v"], "vgear_max": gear["max"]})
         elif path == "/progress/data":
             self._json(progress_summary())
+        elif path == "/progress/rides":
+            self._json({"rides": progress_rides()})
         elif self.path == "/devices":
             with lock:
                 sel_now = dict(sel)
@@ -367,6 +369,15 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(body.get("spd"), (int, float)):
                     rec["game_spd"] = float(body["spd"])
             return self._json({"ok": True, "target_grade": g})
+        if self.path == "/progress/exclusions":
+            files = body.get("files")
+            if not isinstance(files, list):
+                return self._json({"ok": False, "error": "files?"}, 400)
+            try:
+                rides = set_progress_excluded(files)
+            except OSError:
+                return self._json({"ok": False, "error": "opslaan mislukt"}, 500)
+            return self._json({"ok": True, "rides": rides, "progress": progress_summary()})
         if self.path == "/routes/save":
             name = str(body.get("name") or "").strip()[:40]
             ele, segs = body.get("ele"), body.get("segs") or None

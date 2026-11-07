@@ -3,16 +3,18 @@
 <title>Vooruitgang</title>
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:20px;max-width:900px;background:#0b0e14;color:#e7eaf0;font-family:system-ui,sans-serif}
-h1{margin:0 0 4px;font-size:26px}.sub{color:#9aa3b5;font-size:13px;margin-bottom:18px}a{color:#6fb0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.card{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px}.v{font-size:30px;font-weight:700;color:#4da3ff}.l{font-size:12px;color:#9aa3b5;margin-top:4px}.chartBox{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px;margin-top:18px}.chartBox h2{margin:0 0 4px;font-size:18px}.legend{display:flex;gap:16px;color:#9aa3b5;font-size:12px;margin:8px 0}.legend span:before{content:'';display:inline-block;width:22px;border-top:3px solid #4da3ff;margin:0 6px 3px 0}.legend .recent:before{border-color:#5fd35f;border-top-style:dashed}#curve{width:100%;height:270px;display:block;cursor:pointer}.tip{min-height:18px;color:#cfd9ee;font-size:12px}.records{margin-top:18px}.record{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:#151a24;border-bottom:1px solid #232c3d}.record:first-child{border-radius:10px 10px 0 0}.record:last-child{border-radius:0 0 10px 10px}.power{font-size:22px;font-weight:700;color:#5fd35f}.muted{color:#9aa3b5;font-size:12px}#btnHome{position:fixed;top:16px;right:16px;color:#c7d3e8;font-size:24px;text-decoration:none}
+ h1{margin:0 0 4px;font-size:26px}.sub{color:#9aa3b5;font-size:13px;margin-bottom:18px}a{color:#6fb0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.card{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px}.v{font-size:30px;font-weight:700;color:#4da3ff}.l{font-size:12px;color:#9aa3b5;margin-top:4px}.chartBox,.manage{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px;margin-top:18px}.chartBox h2,.manage h2{margin:0 0 4px;font-size:18px}.legend{display:flex;gap:16px;color:#9aa3b5;font-size:12px;margin:8px 0}.legend span:before{content:'';display:inline-block;width:22px;border-top:3px solid #4da3ff;margin:0 6px 3px 0}.legend .recent:before{border-color:#5fd35f;border-top-style:dashed}#curve{width:100%;height:270px;display:block;cursor:pointer}.tip{min-height:18px;color:#cfd9ee;font-size:12px}.records{margin-top:18px}.record{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:#151a24;border-bottom:1px solid #232c3d}.record:first-child{border-radius:10px 10px 0 0}.record:last-child{border-radius:0 0 10px 10px}.power{font-size:22px;font-weight:700;color:#5fd35f}.muted{color:#9aa3b5;font-size:12px}.rideRow{display:grid;grid-template-columns:28px 1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #232c3d;font-size:13px}.rideRow:last-child{border-bottom:0}.warn{color:#ffb45e}.save{background:#2f6fed;border:0;color:#fff;padding:9px 16px;border-radius:7px;cursor:pointer;margin-top:12px}.status{font-size:12px;color:#9aa3b5;margin-left:8px}#btnHome{position:fixed;top:16px;right:16px;color:#c7d3e8;font-size:24px;text-decoration:none}
 </style></head><body>
 <a id="btnHome" href="/" aria-label="Terug naar dashboard">&#10005;</a>
 <h1>Persoonlijke vooruitgang</h1><div class="sub">Beste gemeten gemiddelde vermogens uit opgeslagen TCX-ritten.</div>
 <div class="grid" id="totals"></div>
 <section class="chartBox"><h2>Vermogenscurve</h2><div class="sub" style="margin:0">Beste gemiddelde vermogen per tijdsduur.</div><div class="legend"><span>Persoonlijk record</span><span class="recent">Laatste 30 dagen</span></div><canvas id="curve"></canvas><div class="tip" id="tip">Klik op een punt voor ritdetails.</div></section>
 <div class="records" id="records"></div>
+<section class="manage"><h2>Ritten voor de vermogenscurve</h2><div class="sub" style="margin:0 0 8px">Vink ritten uit die niet in de persoonlijke records en curve mogen meetellen. De rit zelf blijft bewaard.</div><div id="rideList">Ritten laden...</div><button class="save" id="saveExclusions">Opslaan en herberekenen</button><span class="status" id="saveStatus"></span></section>
 <script>
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 let curveRecords=[];
+let managedRides=[];
 function drawCurve(){
   const c=document.getElementById('curve'),dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
   c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
@@ -29,10 +31,17 @@ function drawCurve(){
 document.getElementById('curve').onclick=e=>{const c=e.currentTarget,r=c.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,p=(c._points||[]).sort((a,b)=>(a.x-sx)**2+(a.y-sy)**2-(b.x-sx)**2-(b.y-sy)**2)[0];if(!p)return;const v=p.recent?p.record.recent_power:p.record.power;document.getElementById('tip').textContent=(p.recent?'Laatste 30 dagen: ':'Persoonlijk record: ')+v+' W · '+(p.recent?p.record.recent_name:p.record.name)+' · '+(p.recent?p.record.recent_date:p.record.date);};
 window.addEventListener('resize',()=>{if(curveRecords.length)drawCurve();});
 async function load(){
-  const d=await (await fetch('/progress/data',{cache:'no-store'})).json(),t=d.totals||{};
+  const [pr,rr]=await Promise.all([fetch('/progress/data',{cache:'no-store'}),fetch('/progress/rides',{cache:'no-store'})]);
+  const d=await pr.json(),rides=(await rr.json()).rides||[],t=d.totals||{};managedRides=rides;
   curveRecords=d.records||[];drawCurve();
   document.getElementById('totals').innerHTML=[['Ritten',t.rides||0],['Tijd',Math.round((t.duration||0)/60)+' min'],['Afstand',((t.distance||0)/1000).toFixed(1)+' km'],['Gemiddeld',Math.round(t.avg_w||0)+' W']].map(x=>'<div class="card"><div class="v">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
   document.getElementById('records').innerHTML='<h2>Vermogensrecords</h2>'+d.records.map(r=>'<div class="record"><div><b>'+esc(r.seconds<60?r.seconds+' seconden':(r.seconds/60)+' minuten')+'</b><div class="muted">'+(r.power?esc(r.name)+' · '+esc(r.date):'Nog geen volledige rit')+'</div></div><div class="power">'+(r.power?r.power+' W':'-')+'</div></div>').join('');
+  document.getElementById('rideList').innerHTML=rides.length?rides.map(r=>'<label class="rideRow"><input type="checkbox" data-ride="'+esc(r.file)+'" '+(r.excluded?'':'checked')+'><span>'+esc(r.name)+'<span class="muted"> · '+esc(r.date)+' · '+Math.round((r.duration||0)/60)+' min</span>'+(r.suspicious?' <span class="warn">· verdachte piek</span>':'')+'</span><span>'+Math.round(r.avg_w||0)+' W gem.</span><span>'+Math.round(r.max_w||0)+' W max.</span></label>').join(''):'Geen opgeslagen ritten.';
 }
+document.getElementById('saveExclusions').onclick=async()=>{
+  const files=[...document.querySelectorAll('[data-ride]:not(:checked)')].map(x=>x.dataset.ride),s=document.getElementById('saveStatus');
+  s.textContent='Herberekenen...';
+  try{const r=await fetch('/progress/exclusions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({files})});const d=await r.json();if(!d.ok)throw Error(d.error||'Opslaan mislukt');s.textContent='Opgeslagen';await load();}catch(e){s.textContent=e.message;}
+};
 load().catch(()=>{document.getElementById('records').textContent='Vooruitgang kon niet worden geladen.';});
 </script></body></html>
