@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vooruitgang</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:20px;max-width:900px;background:#0b0e14;color:#e7eaf0;font-family:system-ui,sans-serif}
+h1{margin:0 0 4px;font-size:26px}.sub{color:#9aa3b5;font-size:13px;margin-bottom:18px}a{color:#6fb0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.card{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px}.v{font-size:30px;font-weight:700;color:#4da3ff}.l{font-size:12px;color:#9aa3b5;margin-top:4px}.records{margin-top:18px}.record{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:#151a24;border-bottom:1px solid #232c3d}.record:first-child{border-radius:10px 10px 0 0}.record:last-child{border-radius:0 0 10px 10px}.power{font-size:22px;font-weight:700;color:#5fd35f}.muted{color:#9aa3b5;font-size:12px}#btnHome{position:fixed;top:16px;right:16px;color:#c7d3e8;font-size:24px;text-decoration:none}
+</style></head><body>
+<a id="btnHome" href="/" aria-label="Terug naar dashboard">&#10005;</a>
+<h1>Persoonlijke vooruitgang</h1><div class="sub">Beste gemeten gemiddelde vermogens uit opgeslagen TCX-ritten.</div>
+<div class="grid" id="totals"></div><div class="records" id="records"></div>
+<script>
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+async function load(){
+  const d=await (await fetch('/progress/data',{cache:'no-store'})).json(),t=d.totals||{};
+  document.getElementById('totals').innerHTML=[['Ritten',t.rides||0],['Tijd',Math.round((t.duration||0)/60)+' min'],['Afstand',((t.distance||0)/1000).toFixed(1)+' km'],['Gemiddeld',Math.round(t.avg_w||0)+' W']].map(x=>'<div class="card"><div class="v">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
+  document.getElementById('records').innerHTML='<h2>Vermogensrecords</h2>'+d.records.map(r=>'<div class="record"><div><b>'+esc(r.seconds<60?r.seconds+' seconden':(r.seconds/60)+' minuten')+'</b><div class="muted">'+(r.power?esc(r.name)+' · '+esc(r.date):'Nog geen volledige rit')+'</div></div><div class="power">'+(r.power?r.power+' W':'-')+'</div></div>').join('');
+}
+load().catch(()=>{document.getElementById('records').textContent='Vooruitgang kon niet worden geladen.';});
+</script></body></html>

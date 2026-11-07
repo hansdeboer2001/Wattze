@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from wattze.state import *
 from wattze.storage import load_index, save_index, slugify
 
+TCX_NS = "{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}"
+
 def fmt_time(t):
     return datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -144,3 +146,71 @@ def rec_sample_loop():
                                   round(kmh / 3.6, 2), round(d, 1), round(e, 1),
                                   int(state.get("hr", 0))))
 
+
+def _tcx_power_samples(path):
+    try:
+        root = ET.parse(path).getroot()
+        out = []
+        for tp in root.iter(TCX_NS + "Trackpoint"):
+            ts = tp.find(TCX_NS + "Time")
+            if ts is None or not ts.text:
+                continue
+            try:
+                t = datetime.fromisoformat(ts.text.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                continue
+            watts = 0
+            for node in tp.iter():
+                if node.tag.endswith("Watts"):
+                    try:
+                        watts = max(0, float(node.text or 0))
+                    except (TypeError, ValueError):
+                        pass
+                    break
+            out.append((t, watts))
+        return out
+    except (OSError, ET.ParseError):
+        return []
+
+
+def _best_power_window(samples, seconds):
+    best = 0
+    left = 0
+    total = 0.0
+    for right, (end, watts) in enumerate(samples):
+        total += watts
+        while left <= right and end - samples[left][0] > seconds:
+            total -= samples[left][1]
+            left += 1
+        if end - samples[left][0] < seconds - 1:
+            continue
+        window = samples[left:right + 1]
+        if any(window[i][0] - window[i - 1][0] > 2.0 for i in range(1, len(window))):
+            continue
+        best = max(best, round(total / len(window)))
+    return best
+
+
+def progress_summary():
+    durations = [(5, "5 sec"), (60, "1 min"), (300, "5 min"), (1200, "20 min")]
+    records = {label: {"seconds": seconds, "power": 0, "file": "", "date": "", "name": ""}
+               for seconds, label in durations}
+    rides = load_index()
+    totals = {"rides": 0, "duration": 0, "distance": 0, "avg_w": 0}
+    for ride in rides:
+        path = os.path.join(RIDE_DIR, os.path.basename(str(ride.get("file") or "")))
+        if not os.path.isfile(path):
+            continue
+        totals["rides"] += 1
+        totals["duration"] += int(ride.get("duration") or 0)
+        totals["distance"] += int(ride.get("distance") or 0)
+        totals["avg_w"] += int(ride.get("avg_w") or 0)
+        samples = _tcx_power_samples(path)
+        for seconds, label in durations:
+            power = _best_power_window(samples, seconds)
+            if power > records[label]["power"]:
+                records[label].update(power=power, file=ride.get("file", ""),
+                                      date=ride.get("date", ""), name=ride.get("name", ""))
+    if totals["rides"]:
+        totals["avg_w"] = round(totals["avg_w"] / totals["rides"])
+    return {"records": list(records.values()), "totals": totals}
