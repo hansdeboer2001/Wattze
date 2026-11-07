@@ -214,6 +214,9 @@ def progress_rides():
     excluded = _load_progress_excluded()
     result = []
     for ride in load_index():
+        path = os.path.join(RIDE_DIR, os.path.basename(str(ride.get("file") or "")))
+        if not os.path.isfile(path):
+            continue
         item = dict(ride)
         item["excluded"] = str(ride.get("file") or "") in excluded
         item["suspicious"] = int(ride.get("max_w") or 0) > 3000
@@ -238,14 +241,16 @@ def _progress_signature(rides, excluded):
             sig.append([name, st.st_size, st.st_mtime_ns])
         except OSError:
             sig.append([name, None, None])
-    return {"rides": sig, "excluded": sorted(excluded)}
+    return {"version": 2, "day": int(time.time() // 86400),
+            "rides": sig, "excluded": sorted(excluded)}
 
 
 def progress_summary():
     durations = [(5, "5 sec"), (60, "1 min"), (300, "5 min"), (1200, "20 min")]
-    records = {label: {"seconds": seconds, "power": 0, "recent_power": 0,
-                        "file": "", "date": "", "name": "", "recent_file": "",
-                        "recent_date": "", "recent_name": ""}
+    records = {label: {"seconds": seconds, "all_power": 0, "days90_power": 0,
+                        "recent_power": 0, "file": "", "date": "", "name": "",
+                        "days90_file": "", "days90_date": "", "days90_name": "",
+                        "recent_file": "", "recent_date": "", "recent_name": ""}
                for seconds, label in durations}
     rides = load_index()
     excluded = _load_progress_excluded()
@@ -259,6 +264,7 @@ def progress_summary():
         pass
     totals = {"rides": 0, "duration": 0, "distance": 0, "avg_w": 0}
     recent_since = time.time() - 30 * 86400
+    days90_since = time.time() - 90 * 86400
     for ride in rides:
         if str(ride.get("file") or "") in excluded:
             continue
@@ -272,9 +278,12 @@ def progress_summary():
         samples = _tcx_power_samples(path)
         for seconds, label in durations:
             power = _best_power_window(samples, seconds)
-            if power > records[label]["power"]:
-                records[label].update(power=power, file=ride.get("file", ""),
+            if power > records[label]["all_power"]:
+                records[label].update(all_power=power, file=ride.get("file", ""),
                                       date=ride.get("date", ""), name=ride.get("name", ""))
+            if samples and samples[0][0] >= days90_since and power > records[label]["days90_power"]:
+                records[label].update(days90_power=power, days90_file=ride.get("file", ""),
+                                      days90_date=ride.get("date", ""), days90_name=ride.get("name", ""))
             if samples and samples[0][0] >= recent_since and power > records[label]["recent_power"]:
                 records[label].update(recent_power=power, recent_file=ride.get("file", ""),
                                       recent_date=ride.get("date", ""), recent_name=ride.get("name", ""))
