@@ -3672,7 +3672,8 @@ function stepPhysics(dt){
     }
     if(now-lastPosT>=1000){
       lastPosT=now;
-      const pos={dist:Math.max(0,dist),ele:elev(dist),spd:spd*3.6};
+      const pos={dist:Math.max(0,dist),ele:elev(dist),spd:spd*3.6,
+        power:Math.max(0,Number(power)||0),cad:Math.max(0,Number(cadence)||0)};
       fetch('/ritten/pos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pos)});
     }
     ghostDist=(ghostOn&&!ergOn&&!MP.room)?ghostAt(el):null;
