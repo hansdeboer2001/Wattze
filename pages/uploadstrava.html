@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strava upload</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0b0e14;color:#eee;margin:0;padding:12px;max-width:1000px}
+h1{font-size:20px;margin:0 0 2px}
+.sub{font-size:12px;color:#999;margin-bottom:8px}
+a{color:#4da3ff;font-size:13px}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px}
+button{background:#2f6fed;border:0;color:#fff;padding:8px 16px;font-size:14px;border-radius:8px;cursor:pointer}
+button.ghost{background:#333}
+button:disabled{opacity:.5;cursor:not-allowed}
+.howto{background:#161b26;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:13px;line-height:1.7;color:#bbb}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #222}
+th{color:#999;font-weight:400}
+tr:hover td{background:#141926}
+#btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
+#btnHome:hover{background:#2c3a5a;color:#fff}
+.status{margin:8px 0;padding:8px 12px;border-radius:8px;background:#161b26;font-size:13px}
+.status.ok{background:#1a3a2a;color:#8f8}
+.status.err{background:#3a1a1a;color:#f88}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<h1>Strava upload</h1>
+<div class="sub">Upload ritten direct naar Strava via de API.</div>
+<div id="status" class="status">Laden...</div>
+<div class="row">
+  <button id="btnConnect">Verbinden met Strava</button>
+  <button id="btnRefresh" class="ghost">Verversen</button>
+  <span id="count" style="color:#999"></span>
+</div>
+<div class="howto">
+  <b>Hoe het werkt:</b><br>
+  1. Klik "Verbinden met Strava" en geef toestemming (activity:write).<br>
+  2. Kies een rit en klik "Upload".<br>
+  3. De rit wordt als TCX geüpload (trainer-rit).
+</div>
+<table><thead><tr><th>Naam</th><th>Datum</th><th>Type</th><th>Duur</th><th>Afstand</th><th>Gem</th><th>Max</th><th>HS</th><th></th></tr></thead>
+<tbody id="rows"></tbody></table>
+<script>
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+let connected = false;
+
+async function checkStatus(){
+  const d = await (await fetch('/strava/status')).json();
+  connected = d.connected;
+  const el = document.getElementById('status');
+  if(connected){
+    el.className = 'status ok';
+    el.textContent = 'Verbonden met Strava' + (d.athlete ? ' als ' + d.athlete : '');
+    document.getElementById('btnConnect').textContent = 'Opnieuw verbinden';
+  } else {
+    el.className = 'status';
+    el.textContent = 'Niet verbonden met Strava';
+    document.getElementById('btnConnect').textContent = 'Verbinden met Strava';
+  }
+  return d;
+}
+
+async function load(){
+  await checkStatus();
+  const d = await (await fetch('/ritten/list')).json();
+  const tb = document.getElementById('rows');
+  tb.innerHTML = '';
+  document.getElementById('count').textContent = d.rides.length + ' ritten';
+  d.rides.forEach(r => {
+    const tr = document.createElement('tr');
+    const mins = Math.floor(r.duration/60), km = (r.distance/1000).toFixed(1);
+    tr.innerHTML = '<td>'+esc(r.name)+'</td><td>'+r.date+'</td><td>'+r.type+'</td><td>'+mins+'min</td><td>'+km+'km</td><td>'+r.avg_w+'W</td><td>'+r.max_w+'W</td><td>'+(r.avg_hr||'-')+'</td>';
+    const td = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.textContent = 'Upload';
+    btn.disabled = !connected;
+    btn.onclick = async () => {
+      btn.disabled = true;
+      btn.textContent = 'Bezig...';
+      try {
+        const res = await fetch('/strava/upload', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({file: r.file, name: r.name})
+        });
+        const j = await res.json();
+        if(j.ok){
+          btn.textContent = 'Geüpload \u2713';
+          btn.style.background = '#1a7a3a';
+<<<<<<< HEAD
+=======
+          if(j.url){const o=document.createElement('a');o.href=j.url;o.target='_blank';o.rel='noopener';o.textContent=' Open op Strava';o.style.marginLeft='8px';td.appendChild(o);}
+>>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
+        } else {
+          btn.textContent = 'Fout';
+          alert(j.error || 'Upload mislukt');
+          btn.disabled = false;
+          btn.textContent = 'Upload';
+        }
+      } catch(e){
+        btn.textContent = 'Fout';
+        alert('Netwerkfout');
+        btn.disabled = false;
+        btn.textContent = 'Upload';
+      }
+    };
+    td.appendChild(btn);
+<<<<<<< HEAD
+=======
+    if(r.shot){const s=document.createElement('a');s.href='/ritten/screenshot?f='+encodeURIComponent(r.file.replace(/\.tcx$/,'.png'));s.textContent=' Screenshot';s.style.marginLeft='8px';td.appendChild(s);}
+>>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
+    tr.appendChild(td);
+    tb.appendChild(tr);
+  });
+  if(!d.rides.length) tb.innerHTML = '<tr><td colspan="9" style="color:#888">Nog geen ritten.</td></tr>';
+}
+
+document.getElementById('btnConnect').onclick = () => location.href = '/strava/auth';
+document.getElementById('btnRefresh').onclick = load;
+load();
+</script></body></html>

@@ -43,7 +43,9 @@ async function load(){
     const del=document.createElement('button');del.className='ghost del';del.textContent='Wis';
     del.onclick=async()=>{if(!confirm('Wis "'+r.name+'"?'))return;
       await fetch('/ritten/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:r.file})});load();};
-    td.appendChild(a);td.appendChild(document.createTextNode(' '));td.appendChild(del);
+    td.appendChild(a);td.appendChild(document.createTextNode(' '));
+    if(r.shot){const s=document.createElement('a');s.href='/ritten/screenshot?f='+encodeURIComponent(r.file.replace(/\.tcx$/,'.png'));s.textContent='Screenshot';td.appendChild(s);td.appendChild(document.createTextNode(' '));}
+    td.appendChild(del);
     tr.appendChild(td);tb.appendChild(tr);
   });
   if(!d.rides.length)tb.innerHTML='<tr><td colspan="9" style="color:#888">Nog geen ritten — start een rit in Ride of de blokjes.</td></tr>';
