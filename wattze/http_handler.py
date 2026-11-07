@@ -437,6 +437,12 @@ class Handler(BaseHTTPRequestHandler):
             of = str(body.get("overlay_font", settings["overlay_font"]))
             if of not in ("klein", "middel", "groot"):
                 return self._json({"ok": False, "error": "tekstgrootte?"}, 400)
+            try:
+                rf = int(body.get("route_feel", settings.get("route_feel", 100)))
+            except (TypeError, ValueError):
+                return self._json({"ok": False, "error": "routegevoel?"}, 400)
+            if not 0 <= rf <= 100:
+                return self._json({"ok": False, "error": "routegevoel moet 0-100% zijn"}, 400)
             gm = None
             if "vgear_max" in body:
                 try:
@@ -452,6 +458,7 @@ class Handler(BaseHTTPRequestHandler):
             settings["username"] = str(body.get("username", settings["username"])).strip()[:24]
             settings["weight"] = max(50.0, min(140.0, w))
             settings["overlay_font"] = of
+            settings["route_feel"] = rf
             if "fan_w" in body:
                 raw = body.get("fan_w")
                 try:

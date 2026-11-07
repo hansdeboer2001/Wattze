@@ -97,6 +97,10 @@ def load_config():
                 of = str(d.get("overlay_font") or "middel")
                 settings["overlay_font"] = of if of in ("klein", "middel", "groot") else "middel"
                 try:
+                    settings["route_feel"] = max(0, min(100, int(d.get("route_feel", 100))))
+                except (TypeError, ValueError):
+                    settings["route_feel"] = 100
+                try:
                     gm = int(d.get("vgear_max") or gear["max"])
                     gear["max"] = max(2, min(24, gm))
                 except (TypeError, ValueError):
@@ -142,7 +146,8 @@ def save_config():
                        "hr_addr": None if sel["hr"] in (None, "__off") else sel["hr"],
                        "hr_off": sel["hr"] == "__off",
                        "username": settings["username"], "weight": settings["weight"],
-                         "overlay_font": settings["overlay_font"],
+                        "overlay_font": settings["overlay_font"],
+                        "route_feel": settings.get("route_feel", 100),
                         "vgear": gear["v"],
                        "vgear_max": gear["max"],
                        "click_off": not click["want"], "click_addr": click["addr"],

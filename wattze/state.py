@@ -68,7 +68,7 @@ kom_lock = threading.Lock()
 # ---- apparaatvoorkeur (blijft bewaard tussen starts) ----
 CONFIG_FILE = os.path.join(RIDE_DIR, "config.json")
 sel = {"kickr": None, "hr": None}  # adressen, of "__off" voor HR-uit
-settings = {"username": "", "weight": 85, "overlay_font": "middel"}
+settings = {"username": "", "weight": 85, "overlay_font": "middel", "route_feel": 100}
 rebind = {"kickr": False, "hr": False}
 gear = {"v": 12, "max": 24}  # virtuele versnelling, gedeeld met de telefoonafstandsbediening
 click = {"want": True, "connected": False, "device": "", "addr": None,
