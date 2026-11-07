@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
@@ -7,6 +8,7 @@ from wattze.state import *
 from wattze.storage import load_index, save_index, slugify
 
 TCX_NS = "{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}"
+PROGRESS_CACHE = os.path.join(RIDE_DIR, "progress-cache.json")
 
 def fmt_time(t):
     return datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -191,6 +193,19 @@ def _best_power_window(samples, seconds):
     return best
 
 
+def _progress_signature(rides):
+    sig = []
+    for ride in rides:
+        name = os.path.basename(str(ride.get("file") or ""))
+        path = os.path.join(RIDE_DIR, name)
+        try:
+            st = os.stat(path)
+            sig.append([name, st.st_size, st.st_mtime_ns])
+        except OSError:
+            sig.append([name, None, None])
+    return sig
+
+
 def progress_summary():
     durations = [(5, "5 sec"), (60, "1 min"), (300, "5 min"), (1200, "20 min")]
     records = {label: {"seconds": seconds, "power": 0, "recent_power": 0,
@@ -198,6 +213,14 @@ def progress_summary():
                         "recent_date": "", "recent_name": ""}
                for seconds, label in durations}
     rides = load_index()
+    signature = _progress_signature(rides)
+    try:
+        with open(PROGRESS_CACHE, encoding="utf-8") as f:
+            cached = json.load(f)
+        if cached.get("signature") == signature and isinstance(cached.get("data"), dict):
+            return cached["data"]
+    except (OSError, ValueError, TypeError):
+        pass
     totals = {"rides": 0, "duration": 0, "distance": 0, "avg_w": 0}
     recent_since = time.time() - 30 * 86400
     for ride in rides:
@@ -219,4 +242,12 @@ def progress_summary():
                                       recent_date=ride.get("date", ""), recent_name=ride.get("name", ""))
     if totals["rides"]:
         totals["avg_w"] = round(totals["avg_w"] / totals["rides"])
-    return {"records": list(records.values()), "totals": totals}
+    data = {"records": list(records.values()), "totals": totals}
+    try:
+        tmp = PROGRESS_CACHE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"signature": signature, "data": data}, f, ensure_ascii=False)
+        os.replace(tmp, PROGRESS_CACHE)
+    except OSError:
+        pass
+    return data
