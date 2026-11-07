@@ -5,10 +5,6 @@ import urllib.parse
 import urllib.request
 import uuid
 
-<<<<<<< HEAD
-STRAVA_CLIENT_ID = "294425"
-STRAVA_CLIENT_SECRET = "5da497ad056a250280439454b89be990f41aed9d"
-=======
 def _load_env_file():
     # Simple .env reader (KEY=VALUE per line) next to the app; real env vars take precedence.
     try:
@@ -29,7 +25,6 @@ def _load_env_file():
 _load_env_file()
 STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID", "")
 STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "")
->>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
 STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize"
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_UPLOAD_URL = "https://www.strava.com/api/v3/uploads"
@@ -142,11 +137,7 @@ def get_token():
         return None
     return data.get("access_token")
 
-<<<<<<< HEAD
-def upload_tcx(file_path, name=""):
-=======
 def upload_tcx(file_path, name="", description=""):
->>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
     token = get_token()
     if not token:
         raise RuntimeError("Niet verbonden met Strava")
@@ -159,10 +150,6 @@ def upload_tcx(file_path, name="", description=""):
     def add_field(k, v):
         parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode())
     add_field("data_type", "tcx")
-<<<<<<< HEAD
-    add_field("name", name or os.path.basename(file_path))
-    add_field("trainer", "1")
-=======
     title = (name or "").strip() or "Rit"
     if not title.lower().startswith("wattze"):
         title = "Wattze - " + title
@@ -170,7 +157,6 @@ def upload_tcx(file_path, name="", description=""):
     add_field("trainer", "1")
     if description:
         add_field("description", description)
->>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
     add_field("external_id", os.path.basename(file_path))
     parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{os.path.basename(file_path)}\"\r\nContent-Type: application/vnd.garmin.tcx+xml\r\n\r\n".encode())
     parts.append(file_data)
@@ -182,8 +168,6 @@ def upload_tcx(file_path, name="", description=""):
     req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode())
-<<<<<<< HEAD
-=======
 
 
 def upload_status(upload_id):
@@ -207,4 +191,3 @@ def wait_for_activity(upload_id, timeout=30):
             return st["activity_id"], None
         time.sleep(2)
     return None, None
->>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c

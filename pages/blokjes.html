@@ -148,10 +148,16 @@ let blocks=[],bid=1,wkName='',curView='main',edOpen=false;
 let power=0,hr=0,ergScale=1;
 const tl=document.getElementById('tl'),ftpEl=document.getElementById('ftp');
 const es=new EventSource('/events');
-es.onmessage=e=>{const d=JSON.parse(e.data);power=d.power;hr=d.hr||0;};
+function applyTelemetry(d){power=d.power;hr=d.hr||0;}
+es.onmessage=e=>{try{applyTelemetry(JSON.parse(e.data));}catch(err){}};
+async function syncTelemetry(){
+  try{applyTelemetry(await (await fetch('/api',{cache:'no-store'})).json());}catch(err){}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTelemetry();});
 window.addEventListener('pagehide',()=>{try{navigator.sendBeacon('/ritten/stop','{}');}catch(e){}});
 setInterval(async()=>{
   try{const d=await(await fetch('/api')).json();
+    applyTelemetry(d);
     const t='ERG: '+(d.ctrl.erg_active?'actief':'uit')+' · trainer: '+
       (d.ctrl.last_erg===null?'-':d.ctrl.last_erg+'W')+
       (d.connected?'':' · trainer niet verbonden');

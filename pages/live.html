@@ -43,8 +43,7 @@ canvas{width:100%;height:260px;background:#151a24;border:1px solid #232c3d;borde
 const pts=[];
 const es=new EventSource('/events');
 const dot=document.getElementById('dot'),stext=document.getElementById('stext');
-es.onmessage=e=>{
-  const d=JSON.parse(e.data);
+function applyTelemetry(d){
   document.getElementById('power').textContent=d.power;
   document.getElementById('avg').textContent=d.avg;
   document.getElementById('max').textContent=d.max;
@@ -55,8 +54,14 @@ es.onmessage=e=>{
   stext.textContent=d.connected?'verbonden':'niet verbonden';
   pts.push(d.power); if(pts.length>180)pts.shift();
   draw();
-};
+}
+es.onmessage=e=>{try{applyTelemetry(JSON.parse(e.data));}catch(err){}};
 es.onerror=()=>{dot.className='dot';stext.textContent='geen verbinding met server';};
+async function syncTelemetry(){
+  try{applyTelemetry(await (await fetch('/api',{cache:'no-store'})).json());}catch(err){}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTelemetry();});
+setInterval(()=>{if(!document.hidden)syncTelemetry();},3000);
 function draw(){
   const c=document.getElementById('chart'),x=c.getContext('2d');
   const W=c.width,H=c.height;x.clearRect(0,0,W,H);
@@ -69,6 +74,6 @@ function draw(){
   x.fillStyle='rgba(77,163,255,.15)';x.fill();
   x.fillStyle='#aaa';x.font='12px sans-serif';x.fillText(Math.round(peak)+' W',8,14);
 }
-fetch('/api').then(r=>r.json()).then(d=>{(d.hist||[]).forEach(p=>pts.push(p));draw();});
+fetch('/api',{cache:'no-store'}).then(r=>r.json()).then(d=>{(d.hist||[]).forEach(p=>pts.push(p));applyTelemetry(d);}).catch(()=>{});
 </script>
 </body></html>

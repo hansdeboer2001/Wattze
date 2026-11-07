@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-PLACEHOLDER_AGAIN
-=======
 import asyncio
 import json
 import os
@@ -595,4 +592,3 @@ class Handler(BaseHTTPRequestHandler):
                 f.write(png)
             return self._json({"ok": True})
         return self._json({"ok": False}, 404)
->>>>>>> 2a494c019fc3673a19162db64bc84f7126cecd4c
