@@ -54,6 +54,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "text/html; charset=utf-8", render_page(page).encode())
         elif path == "/live":
             self._send(200, "text/html; charset=utf-8", render_page(PAGE_LIVE).encode())
+        elif path == "/progress":
+            self._send(200, "text/html; charset=utf-8", render_page(PAGE_PROGRESS).encode())
         elif path == "/start":
             remote_url = "http://%s:%d/afstandsbediening" % (lan_ip(), PORT)
             page = PAGE_START.replace("__LANURL__", remote_url)
@@ -90,6 +92,8 @@ class Handler(BaseHTTPRequestHandler):
                 fstat = {k: fan[k] for k in ("on", "host", "level", "connected", "err", "w", "force_level", "force_until", "mode", "coast", "coasting")}
             self._json({**settings, "multi": dict(multi), "fan": fstat,
                         "vgear": gear["v"], "vgear_max": gear["max"]})
+        elif path == "/progress/data":
+            self._json(progress_summary())
         elif self.path == "/devices":
             with lock:
                 sel_now = dict(sel)
