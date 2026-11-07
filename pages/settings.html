@@ -19,6 +19,7 @@ button{background:#2f6fed;border:0;color:#fff;padding:10px 22px;font-size:15px;b
 #fanExtra{display:none}
 #fanTest{display:flex;gap:8px}
 #fanTest button{flex:1;margin-top:12px;padding:8px 0}
+#routeFeelValue{font-weight:700;color:#cfd9ee}
 #msg{font-size:13px;margin-left:10px}
 #btnHome{position:fixed;top:16px;right:16px;z-index:11;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.45)}
 #btnHome:hover{background:#2c3a5a;color:#fff}
@@ -38,6 +39,9 @@ button{background:#2f6fed;border:0;color:#fff;padding:10px 22px;font-size:15px;b
 <label for="gears">Aantal versnellingen</label>
 <input id="gears" type="number" min="2" max="24" step="1">
 <div class="hint">Virtuele versnellingen in Ride en op de afstandsbediening. Minder versnellingen geeft grotere stappen; bij wijzigen begint de versnelling in het midden.</div>
+<label for="routeFeel">Routegevoel <span id="routeFeelValue">100%</span></label>
+<input id="routeFeel" type="range" min="0" max="100" step="5" value="100">
+<div class="hint">Hoe sterk klim- en daalhellingen naar de trainer worden doorgestuurd. 100% is de echte route; 0% maakt de route vlak voor de trainer. Virtuele versnellingen blijven werken.</div>
 <label for="fanOn">Ventilator</label>
 <select id="fanOn"><option value="off">Uit</option><option value="on">Aan</option></select>
 <div id="fanExtra">
@@ -69,6 +73,7 @@ button{background:#2f6fed;border:0;color:#fff;padding:10px 22px;font-size:15px;b
 <script>
 const u=document.getElementById('username'),w=document.getElementById('weight'),o=document.getElementById('overlay'),
   gears=document.getElementById('gears'),
+  routeFeel=document.getElementById('routeFeel'),routeFeelValue=document.getElementById('routeFeelValue'),
   msg=document.getElementById('msg'),
   fanExtra=document.getElementById('fanExtra'),
   fanOn=document.getElementById('fanOn'),fanHost=document.getElementById('fanHost'),fanStat=document.getElementById('fanStat'),
@@ -77,6 +82,7 @@ const u=document.getElementById('username'),w=document.getElementById('weight'),
 function syncExtra(){
   fanExtra.style.display=fanOn.value==='on'?'block':'none';
 }
+routeFeel.oninput=()=>routeFeelValue.textContent=routeFeel.value+'%';
 fanOn.onchange=syncExtra;
 syncExtra();
 function fanText(f){
@@ -87,6 +93,7 @@ function fanText(f){
 }
 fetch('/settings').then(r=>r.json()).then(s=>{u.value=s.username||'';w.value=s.weight;o.value=s.overlay_font||'middel';
   gears.value=s.vgear_max||24;
+  routeFeel.value=s.route_feel==null?100:s.route_feel;routeFeelValue.textContent=routeFeel.value+'%';
   if(s.fan){fanOn.value=s.fan.on?'on':'off';fanHost.value=s.fan.host||'';fanStat.textContent=fanText(s.fan);
     if(s.fan.w&&s.fan.w.length===3){fanW1.value=s.fan.w[0];fanW2.value=s.fan.w[1];fanW3.value=s.fan.w[2];}
     if(s.fan.coast!=null)fanCoast.value=s.fan.coast;}
@@ -101,7 +108,8 @@ document.querySelectorAll('#fanTest button').forEach(b=>b.onclick=async()=>{
 document.getElementById('save').onclick=async()=>{
   const r=await fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({username:u.value,weight:parseFloat(w.value),overlay_font:o.value,
-      vgear_max:parseInt(gears.value,10),
+       vgear_max:parseInt(gears.value,10),
+       route_feel:parseInt(routeFeel.value,10),
       fan_on:fanOn.value==='on',fan_host:fanHost.value,
       fan_w:[parseFloat(fanW1.value),parseFloat(fanW2.value),parseFloat(fanW3.value)],
       fan_coast:parseInt(fanCoast.value,10)})});

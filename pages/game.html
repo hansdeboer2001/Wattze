@@ -734,7 +734,8 @@ function targetSpeed(p,g,draft,m,aero,crr){
 }
 function postGrade(g){
   const now=performance.now()/1000;
-  const sg=Math.max(-12,Math.min(18,g+(vgear-(VGEAR_MAX+1)/2)*VGEAR_STEP));
+  const feel=Math.max(0,Math.min(100,Number(SETTINGS.route_feel==null?100:SETTINGS.route_feel)))/100;
+  const sg=Math.max(-12,Math.min(18,g*feel+(vgear-(VGEAR_MAX+1)/2)*VGEAR_STEP));
   if(Math.abs(sg-lastPostG)>=0.5&&now-lastPostT>=1.0){
     lastPostG=sg;lastPostT=now;
     fetch('/grade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grade:sg,ele:elev(dist),dist:Math.max(0,dist),spd:spd*3.6})});
