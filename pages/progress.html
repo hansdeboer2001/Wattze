@@ -3,15 +3,34 @@
 <title>Vooruitgang</title>
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:20px;max-width:900px;background:#0b0e14;color:#e7eaf0;font-family:system-ui,sans-serif}
-h1{margin:0 0 4px;font-size:26px}.sub{color:#9aa3b5;font-size:13px;margin-bottom:18px}a{color:#6fb0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.card{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px}.v{font-size:30px;font-weight:700;color:#4da3ff}.l{font-size:12px;color:#9aa3b5;margin-top:4px}.records{margin-top:18px}.record{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:#151a24;border-bottom:1px solid #232c3d}.record:first-child{border-radius:10px 10px 0 0}.record:last-child{border-radius:0 0 10px 10px}.power{font-size:22px;font-weight:700;color:#5fd35f}.muted{color:#9aa3b5;font-size:12px}#btnHome{position:fixed;top:16px;right:16px;color:#c7d3e8;font-size:24px;text-decoration:none}
+h1{margin:0 0 4px;font-size:26px}.sub{color:#9aa3b5;font-size:13px;margin-bottom:18px}a{color:#6fb0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.card{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px}.v{font-size:30px;font-weight:700;color:#4da3ff}.l{font-size:12px;color:#9aa3b5;margin-top:4px}.chartBox{background:#151a24;border:1px solid #232c3d;border-radius:12px;padding:14px;margin-top:18px}.chartBox h2{margin:0 0 4px;font-size:18px}.legend{display:flex;gap:16px;color:#9aa3b5;font-size:12px;margin:8px 0}.legend span:before{content:'';display:inline-block;width:22px;border-top:3px solid #4da3ff;margin:0 6px 3px 0}.legend .recent:before{border-color:#5fd35f;border-top-style:dashed}#curve{width:100%;height:270px;display:block;cursor:pointer}.tip{min-height:18px;color:#cfd9ee;font-size:12px}.records{margin-top:18px}.record{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;background:#151a24;border-bottom:1px solid #232c3d}.record:first-child{border-radius:10px 10px 0 0}.record:last-child{border-radius:0 0 10px 10px}.power{font-size:22px;font-weight:700;color:#5fd35f}.muted{color:#9aa3b5;font-size:12px}#btnHome{position:fixed;top:16px;right:16px;color:#c7d3e8;font-size:24px;text-decoration:none}
 </style></head><body>
 <a id="btnHome" href="/" aria-label="Terug naar dashboard">&#10005;</a>
 <h1>Persoonlijke vooruitgang</h1><div class="sub">Beste gemeten gemiddelde vermogens uit opgeslagen TCX-ritten.</div>
-<div class="grid" id="totals"></div><div class="records" id="records"></div>
+<div class="grid" id="totals"></div>
+<section class="chartBox"><h2>Vermogenscurve</h2><div class="sub" style="margin:0">Beste gemiddelde vermogen per tijdsduur.</div><div class="legend"><span>Persoonlijk record</span><span class="recent">Laatste 30 dagen</span></div><canvas id="curve"></canvas><div class="tip" id="tip">Klik op een punt voor ritdetails.</div></section>
+<div class="records" id="records"></div>
 <script>
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+let curveRecords=[];
+function drawCurve(){
+  const c=document.getElementById('curve'),dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+  const pad={l:42,r:16,t:16,b:34},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  const vals=curveRecords.flatMap(r=>[r.power,r.recent_power]).filter(v=>v>0),max=Math.max(100,...vals,1),yMax=Math.ceil(max/50)*50;
+  const y=v=>pad.t+ch-(v/yMax)*ch,px=i=>pad.l+(curveRecords.length<2?cw/2:i/(curveRecords.length-1)*cw);
+  x.strokeStyle='#2b3548';x.lineWidth=1;x.font='11px system-ui';x.fillStyle='#9aa3b5';
+  for(let i=0;i<=4;i++){const v=yMax*i/4,yy=y(v);x.beginPath();x.moveTo(pad.l,yy);x.lineTo(w-pad.r,yy);x.stroke();x.fillText(Math.round(v)+' W',4,yy+4);}
+  x.fillStyle='#cfd9ee';curveRecords.forEach((r,i)=>x.fillText(r.seconds<60?r.seconds+'s':(r.seconds/60)+'m',px(i)-10,h-10));
+  function line(key,color,dash){x.beginPath();x.strokeStyle=color;x.lineWidth=3;x.setLineDash(dash||[]);let open=false;curveRecords.forEach((r,i)=>{const v=r[key];if(!v)return;const q={x:px(i),y:y(v)};if(!open){x.moveTo(q.x,q.y);open=true;}else x.lineTo(q.x,q.y);});x.stroke();x.setLineDash([]);curveRecords.forEach((r,i)=>{if(!r[key])return;x.fillStyle=color;x.beginPath();x.arc(px(i),y(r[key]),4,0,Math.PI*2);x.fill();});}
+  line('power','#4da3ff');line('recent_power','#5fd35f',[6,5]);
+  c._points=curveRecords.flatMap((r,i)=>[{x:px(i),y:y(r.power),record:r,recent:false},{x:px(i),y:y(r.recent_power),record:r,recent:true}].filter(p=>p.record[ p.recent?'recent_power':'power']));
+}
+document.getElementById('curve').onclick=e=>{const c=e.currentTarget,r=c.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top,p=(c._points||[]).sort((a,b)=>(a.x-sx)**2+(a.y-sy)**2-(b.x-sx)**2-(b.y-sy)**2)[0];if(!p)return;const v=p.recent?p.record.recent_power:p.record.power;document.getElementById('tip').textContent=(p.recent?'Laatste 30 dagen: ':'Persoonlijk record: ')+v+' W · '+(p.recent?p.record.recent_name:p.record.name)+' · '+(p.recent?p.record.recent_date:p.record.date);};
+window.addEventListener('resize',()=>{if(curveRecords.length)drawCurve();});
 async function load(){
   const d=await (await fetch('/progress/data',{cache:'no-store'})).json(),t=d.totals||{};
+  curveRecords=d.records||[];drawCurve();
   document.getElementById('totals').innerHTML=[['Ritten',t.rides||0],['Tijd',Math.round((t.duration||0)/60)+' min'],['Afstand',((t.distance||0)/1000).toFixed(1)+' km'],['Gemiddeld',Math.round(t.avg_w||0)+' W']].map(x=>'<div class="card"><div class="v">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
   document.getElementById('records').innerHTML='<h2>Vermogensrecords</h2>'+d.records.map(r=>'<div class="record"><div><b>'+esc(r.seconds<60?r.seconds+' seconden':(r.seconds/60)+' minuten')+'</b><div class="muted">'+(r.power?esc(r.name)+' · '+esc(r.date):'Nog geen volledige rit')+'</div></div><div class="power">'+(r.power?r.power+' W':'-')+'</div></div>').join('');
 }

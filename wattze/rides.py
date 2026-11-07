@@ -193,10 +193,13 @@ def _best_power_window(samples, seconds):
 
 def progress_summary():
     durations = [(5, "5 sec"), (60, "1 min"), (300, "5 min"), (1200, "20 min")]
-    records = {label: {"seconds": seconds, "power": 0, "file": "", "date": "", "name": ""}
+    records = {label: {"seconds": seconds, "power": 0, "recent_power": 0,
+                        "file": "", "date": "", "name": "", "recent_file": "",
+                        "recent_date": "", "recent_name": ""}
                for seconds, label in durations}
     rides = load_index()
     totals = {"rides": 0, "duration": 0, "distance": 0, "avg_w": 0}
+    recent_since = time.time() - 30 * 86400
     for ride in rides:
         path = os.path.join(RIDE_DIR, os.path.basename(str(ride.get("file") or "")))
         if not os.path.isfile(path):
@@ -211,6 +214,9 @@ def progress_summary():
             if power > records[label]["power"]:
                 records[label].update(power=power, file=ride.get("file", ""),
                                       date=ride.get("date", ""), name=ride.get("name", ""))
+            if samples and samples[0][0] >= recent_since and power > records[label]["recent_power"]:
+                records[label].update(recent_power=power, recent_file=ride.get("file", ""),
+                                      recent_date=ride.get("date", ""), recent_name=ride.get("name", ""))
     if totals["rides"]:
         totals["avg_w"] = round(totals["avg_w"] / totals["rides"])
     return {"records": list(records.values()), "totals": totals}
