@@ -24,6 +24,7 @@ function drawCurve(){
   x.strokeStyle='#2b3548';x.lineWidth=1;x.font='11px system-ui';x.fillStyle='#9aa3b5';
   for(let i=0;i<=4;i++){const v=yMax*i/4,yy=y(v);x.beginPath();x.moveTo(pad.l,yy);x.lineTo(w-pad.r,yy);x.stroke();x.fillText(Math.round(v)+' W',4,yy+4);}
   x.fillStyle='#cfd9ee';curveRecords.forEach((r,i)=>x.fillText(r.seconds<60?r.seconds+'s':(r.seconds/60)+'m',px(i)-10,h-10));
+  if(!vals.length){x.fillStyle='#9aa3b5';x.textAlign='center';x.fillText('Geen geselecteerde ritten met voldoende vermogensdata',w/2,h/2);x.textAlign='start';c._points=[];return;}
   function line(key,color,dash){x.beginPath();x.strokeStyle=color;x.lineWidth=3;x.setLineDash(dash||[]);let open=false;curveRecords.forEach((r,i)=>{const v=r[key];if(!v)return;const q={x:px(i),y:y(v)};if(!open){x.moveTo(q.x,q.y);open=true;}else x.lineTo(q.x,q.y);});x.stroke();x.setLineDash([]);curveRecords.forEach((r,i)=>{if(!r[key])return;x.fillStyle=color;x.beginPath();x.arc(px(i),y(r[key]),4,0,Math.PI*2);x.fill();});}
   line('power','#4da3ff');line('recent_power','#5fd35f',[6,5]);
   c._points=curveRecords.flatMap((r,i)=>[{x:px(i),y:y(r.power),record:r,recent:false},{x:px(i),y:y(r.recent_power),record:r,recent:true}].filter(p=>p.record[ p.recent?'recent_power':'power']));
