@@ -264,7 +264,6 @@ a{color:#4da3ff;font-size:13px}
 </div>
 <div id="routeTools">
 <input id="routeSearch" type="search" placeholder="Zoek route..." aria-label="Zoek route">
-<select id="routeWorldFilter" aria-label="Filter op regio"><option value="">Alle regio's</option></select>
 <input id="routeMinKm" type="number" min="0" step="1" placeholder="Min km" aria-label="Minimale afstand">
 <input id="routeMaxKm" type="number" min="0" step="1" placeholder="Max km" aria-label="Maximale afstand">
 <input id="routeMinHm" type="number" min="0" step="50" placeholder="Min hm" aria-label="Minimale hoogtemeters">
@@ -679,19 +678,18 @@ function routeWorld(r){
   const a=((r.blurb||'').split(' · ')[0]||'').trim();
   return (!a||/^[\d.,]+\s*km$/i.test(a))?'Overig':a;
 }
-const routeFilter={q:'',world:'',minKm:'',maxKm:'',minHm:'',maxHm:'',sort:'default',fav:false};
+const routeFilter={q:'',minKm:'',maxKm:'',minHm:'',maxHm:'',sort:'default',fav:false};
 let routeFiltersWired=false;
 function routeNumber(id){const v=parseFloat(document.getElementById(id).value);return Number.isFinite(v)?v:null;}
 function routeMeta(r){
   const c=routeProfile(r);
-  return {route:r,course:c,world:routeWorld(r),km:c.km,hm:c.gain};
+  return {route:r,course:c,km:c.km,hm:c.gain};
 }
 function wireRouteFilters(){
   if(routeFiltersWired)return;
   routeFiltersWired=true;
   const redraw=()=>{
     routeFilter.q=document.getElementById('routeSearch').value.trim().toLowerCase();
-    routeFilter.world=document.getElementById('routeWorldFilter').value;
     routeFilter.minKm=document.getElementById('routeMinKm').value;
     routeFilter.maxKm=document.getElementById('routeMaxKm').value;
     routeFilter.minHm=document.getElementById('routeMinHm').value;
@@ -700,15 +698,8 @@ function wireRouteFilters(){
     routeFilter.fav=document.getElementById('routeFavOnly').checked;
     buildRouteCards();
   };
-  ['routeSearch','routeWorldFilter','routeMinKm','routeMaxKm','routeMinHm','routeMaxHm','routeSort','routeFavOnly']
+  ['routeSearch','routeMinKm','routeMaxKm','routeMinHm','routeMaxHm','routeSort','routeFavOnly']
     .forEach(id=>document.getElementById(id).addEventListener('input',redraw));
-  document.getElementById('routeWorldFilter').addEventListener('change',redraw);
-}
-function updateRouteWorlds(metas){
-  const sel=document.getElementById('routeWorldFilter'),current=sel.value;
-  const worlds=[...new Set(metas.map(m=>m.world).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nl'));
-  sel.innerHTML='<option value="">Alle regio\'s</option>'+worlds.map(w=>'<option value="'+String(w).replace(/"/g,'&quot;')+'">'+String(w).replace(/</g,'&lt;')+'</option>').join('');
-  sel.value=worlds.indexOf(current)>=0?current:'';
 }
 function favIds(){
   try{const a=JSON.parse(localStorage.getItem('route_favs')||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}
@@ -728,14 +719,11 @@ function buildRouteCards(){
   wireRouteFilters();
   const grid=document.getElementById('routeGrid');
   grid.innerHTML='';
-  ROUTES.forEach(r=>{r.world=routeWorld(r);});
   const favs=favIds();
   const metas=ROUTES.filter(r=>r.fixed).map(routeMeta);
-  updateRouteWorlds(metas);
   const minKm=routeNumber('routeMinKm'),maxKm=routeNumber('routeMaxKm'),minHm=routeNumber('routeMinHm'),maxHm=routeNumber('routeMaxHm');
   let filtered=metas.filter(m=>
     (!routeFilter.q||m.course.name.toLowerCase().includes(routeFilter.q))&&
-    (!routeFilter.world||m.world===routeFilter.world)&&
     (minKm==null||m.km>=minKm)&&(maxKm==null||m.km<=maxKm)&&
     (minHm==null||m.hm>=minHm)&&(maxHm==null||m.hm<=maxHm)&&
     (!routeFilter.fav||favs.indexOf(m.route.id)>=0));
