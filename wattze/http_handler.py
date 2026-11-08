@@ -1,4 +1,5 @@
 import asyncio
+import ipaddress
 import json
 import os
 import threading
@@ -7,7 +8,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 from wattze.ble_wattze import scan_devices, scan_devices_cached
-from wattze import strava
+from wattze import strava, online_kom
 from wattze.fan import fan_cmd
 from wattze.pages import *
 from wattze.rides import *
@@ -45,8 +46,48 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         self._send(code, "application/json", json.dumps(obj).encode())
 
+    def _online_kom(self, method):
+        try:
+            if not ipaddress.ip_address(self.client_address[0]).is_loopback:
+                raise ValueError()
+            host = self.headers.get("Host", "")
+            parsed = urlparse("http://" + host)
+            if (parsed.hostname not in ("localhost", "127.0.0.1", "::1") or
+                    (parsed.port or 80) != self.server.server_address[1] or parsed.username or
+                    parsed.password or parsed.path or parsed.query or parsed.fragment):
+                raise ValueError()
+            origin = self.headers.get("Origin")
+            if origin is not None and origin != "http://" + host:
+                raise ValueError()
+            if self.headers.get("Sec-Fetch-Site") == "cross-site":
+                raise ValueError()
+        except ValueError:
+            self.close_connection = True
+            return self._json({"ok": False, "error": "Online KOM requires a same-origin loopback connection"}, 403)
+        body = None
+        if method == "POST":
+            if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+                self.close_connection = True
+                return self._json({"ok": False, "error": "application/json is required"}, 415)
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if not 0 < n <= 2 * 1024 * 1024 or self.headers.get("Transfer-Encoding"):
+                    raise ValueError()
+                body = json.loads(self.rfile.read(n))
+                if not isinstance(body, dict):
+                    raise ValueError()
+            except (ValueError, UnicodeError):
+                self.close_connection = True
+                return self._json({"ok": False, "error": "Invalid online KOM JSON body"}, 400)
+        parsed = urlparse(self.path)
+        query = {k: v[0] for k, v in parse_qs(parsed.query, keep_blank_values=True).items()}
+        result, status = online_kom.handle(method, parsed.path[len("/online-kom"):], body, query)
+        return self._json(result, status)
+
     def do_GET(self):
         path = urlparse(self.path).path
+        if path.startswith("/online-kom/"):
+            return self._online_kom("GET")
         if path == "/":
             remote_url = "http://%s:%d/afstandsbediening" % (lan_ip(), PORT)
             page = (PAGE.replace("__LANURL__", remote_url)
@@ -87,6 +128,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/instellingen":
             page = load_page("settings.html").replace("__LANURL__", "http://%s:%d" % (lan_ip(), PORT))
             self._send(200, "text/html; charset=utf-8", render_page(page).encode())
+        elif path == "/klassementen":
+            self._send(200, "text/html; charset=utf-8", render_page(load_page("online-kom.html")).encode())
         elif self.path == "/settings":
             with lock:
                 fstat = {k: fan[k] for k in ("on", "host", "level", "connected", "err", "w", "force_level", "force_until", "mode", "coast", "coasting")}
@@ -304,6 +347,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, "text/plain", b"not found")
 
     def do_POST(self):
+        if urlparse(self.path).path.startswith("/online-kom/"):
+            return self._online_kom("POST")
         try:
             n = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(n) or b"{}")

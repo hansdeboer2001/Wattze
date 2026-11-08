@@ -171,7 +171,98 @@ zelf toe:
   Dan komt er een plek vrij voor een ander.
 - Zonder `.env` werkt Wattze gewoon, alleen zonder Strava.
 
-## Ritten en gegevens
+## Online KOM-Klassementen
+
+Open **Instellingen > Online KOM's**, of ga naar `/klassementen`. Maak een
+rijdersprofiel aan en bewaar de geheime herstelsleutel in je
+wachtwoordmanager. Daarmee herstel je hetzelfde profiel op een andere pc.
+Er is geen e-mailadres of wachtwoord nodig. De sleutel blijft op de beheerpagina
+beschikbaar totdat je bevestigt dat je hem hebt bewaard. Deel nooit de herstelsleutel.
+
+- **Lokaal:** je bestaande KOM's op deze pc, ook zonder account of internet.
+- **Algemeen:** openbare beste tijd per rijder; bekijken kan zonder profiel.
+- **Vrienden:** jouw beste tijd en die van geaccepteerde vrienden die delen aanzetten.
+
+Je vindt de drie tabs in de KOM-ranglijst in Ride. Stuur je **vriendencode** naar
+een fietsmaatje. Die voert hem in en verstuurt een verzoek; jij accepteert dat
+onder Ontvangen verzoeken. Beide rijders kunnen een vriendschap verwijderen.
+De vriendencode is geen login en geeft op zichzelf geen toegang tot resultaten.
+
+Algemeen en Vrienden hebben aparte toestemming, beide standaard uit. Alleen
+nieuwe volledige KOM-pogingen worden ingestuurd, direct na de segmentfinish.
+Het achteraf negeren van een rit verwijdert een al ingestuurde KOM niet.
+Simulatie (ook eerder in dezelfde rit of tijdens een pauze), ERG-trainingen en
+segmenten waarin je pauzeert worden niet ingestuurd. Bestaande/import-KOM's
+worden niet geupload.
+
+Alleen vaste routes met een op app en server overeenkomend hoogteprofiel en
+expliciete segmentgrenzen worden ondersteund. Eigen en willekeurige routes
+tellen niet mee. Gewijzigde route-/segmentversies krijgen een apart klassement.
+Er wordt gecontroleerd op ongeldige waarden en onmogelijke snelheden, maar
+resultaten zijn **zelfgerapporteerd, geen geverifieerde wedstrijdresultaten**.
+
+Bij tijdelijke netwerk-/serverproblemen bewaart de app maximaal 1000 pogingen
+in een lokale wachtrij. Gebruik **Opnieuw versturen** op `/klassementen`;
+maximaal 20 pogingen per klik. Dubbele verzending maakt geen dubbele resultaten.
+Voorkeuren wijzigen wist de wachtrij, zodat pogingen niet onverwacht met nieuwe
+deelvoorkeuren worden gepubliceerd. Delen uitzetten verbergt eerdere tijden
+voor die categorie definitief; opnieuw aanzetten deelt alleen nieuwe pogingen.
+Ook een wijziging op een andere pc maakt nog niet verstuurde pogingen met de
+oude deelvoorkeuren ongeldig.
+
+Profiel, geheime sleutel en wachtrij staan afzonderlijk in
+`WattzeRitten/online-kom.json`, niet in algemene instellingen of API-snapshots.
+Bewaar dit bestand prive. Online beheer en de nieuwe lokale API werken uitsluitend
+via `http://localhost:<poort>` op deze pc, niet via het LAN-adres op je telefoon.
+
+### App En Server Updaten
+
+De online API is een optionele uitbreiding onder `/api/kom/v1` op `wattze.com`.
+De serverbron staat in het afzonderlijke project `../wattze-server`.
+
+- Een nieuwe app met een oude/offline server behoudt lokale ritten en KOM's.
+  De online tabs tonen een melding dat de server moet worden bijgewerkt.
+- Een nieuwe server behoudt de bestaande multiplayer-endpoints voor oudere apps.
+- Voor **de nieuwe online klassementen** moeten app en server beide bijgewerkt zijn.
+  Deploy bij voorkeur eerst de server, daarna de app.
+
+De server bewaart profielen, vriendschappen en resultaten in SQLite. Gebruik een
+blijvende datamap/volume en maak backups; zie `../wattze-server/README.md` voor
+deploy-, privacy- en protocolinformatie. Een app-update is op zichzelf dus geen
+reden om voortaan altijd de server tegelijk te moeten updaten.
+
+### Online KOM's Op De Testserver
+
+Stel op je Windows-pc in PowerShell voor het starten van Wattze de variabele
+`WATTZE_KOM_HOST` in. Vanuit de Wattze-projectmap:
+
+```powershell
+$env:WATTZE_KOM_HOST = "https://test.wattze.com"
+.\start_wattze.cmd
+```
+
+Het startscript herstart de lokale app met deze instelling. Alleen online KOM's
+gebruiken de testserver; multiplayer blijft op `wattze.com`. De URL moet een
+HTTPS-serveradres zonder pad, inloggegevens of query zijn. Een lege of ontbrekende
+variabele gebruikt de productieserver.
+
+Elke afwijkende server krijgt een afzonderlijk lokaal profiel en wachtrij in
+`WattzeRitten/online-kom-<serverhash>.json`. Maak dus een nieuw testprofiel aan;
+herstel geen productiesleutel op de testserver. Het bestaande productieprofiel
+in `online-kom.json` en de lokale ritten/KOM's blijven ongewijzigd.
+
+Terug naar productie, in hetzelfde PowerShell-venster:
+
+```powershell
+Remove-Item Env:WATTZE_KOM_HOST -ErrorAction SilentlyContinue
+.\start_wattze.cmd
+```
+
+De variabele geldt voor processen die vanuit dit PowerShell-venster worden gestart;
+een gewone dubbelklik neemt deze tijdelijke instelling niet over. Voor een exe
+is een nieuwe build met deze wijziging nodig; start die ook vanuit dit venster.
+
+## Ritten En Gegevens
 
 Opgeslagen gegevens staan in `WattzeRitten/` (automatisch aangemaakt):
 

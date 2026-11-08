@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Online KOM's - Wattze</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0b0e14;color:#eee;margin:0;padding:20px;line-height:1.5}
+main{max-width:760px;margin:auto}h1{font-size:24px;margin-bottom:4px}h2{font-size:18px;margin-top:0}
+a{color:#7fb0ff}.sub,.hint{color:#9aa3b5;font-size:13px}.card{background:#161b26;border-radius:12px;padding:20px;margin:18px 0}
+label{display:block;margin:12px 0 5px}input{box-sizing:border-box;width:100%;padding:10px;background:#222c44;color:#eee;border:1px solid #48536a;border-radius:6px;font:inherit}
+input[type=checkbox]{width:auto;margin-right:8px}button{background:#2f6fed;border:0;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font:inherit}
+button:disabled{opacity:.5;cursor:wait}.secondary{background:#29354d}.row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px}
+.person{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid #29354d;padding:10px 0}.person span{flex:1;min-width:100px}
+code{overflow-wrap:anywhere;color:#b6d2ff;font-size:15px}#message{min-height:1.5em;color:#b6d2ff}#recovery{border:1px solid #bd913a}summary{cursor:pointer}
+[hidden]{display:none!important}@media(max-width:480px){body{padding:12px}.card{padding:16px}.row button{flex:1}}
+</style></head><body><main>
+<a href="/instellingen">Instellingen</a> &middot; <a href="/game">Terug naar Ride</a>
+<h1>Online KOM's</h1>
+<div class="sub">Jouw beste klimtijden, vergeleken met iedereen of alleen je vrienden.</div>
+<p id="message" role="status" aria-live="polite"></p>
+<section id="signup" class="card" hidden>
+<h2>Jouw rijdersprofiel</h2>
+<p>Een profiel is gratis en heeft geen e-mailadres nodig. Delen staat standaard uit. Je lokale KOM's veranderen niet.</p>
+<form id="registerForm"><label for="newName">Weergavenaam</label><input id="newName" maxlength="40" required autocomplete="nickname">
+<div class="row"><button type="submit">Profiel aanmaken</button></div></form>
+<details style="margin-top:20px"><summary>Ik heb al een profiel</summary>
+<form id="restoreForm"><label for="restoreToken">Geheime herstelsleutel</label><input id="restoreToken" type="password" required autocomplete="off" spellcheck="false">
+<div class="row"><button type="submit" class="secondary">Profiel herstellen</button></div></form></details>
+</section>
+<section id="recovery" class="card" hidden>
+<h2>Bewaar je herstelsleutel</h2>
+<p>Bewaar deze sleutel in je wachtwoordmanager om je profiel op een andere pc te herstellen. Hij blijft zichtbaar totdat je bevestigt dat je hem hebt bewaard. Zonder sleutel kun je een verloren profiel niet herstellen.</p>
+<p><code id="recoveryToken"></code></p>
+<p class="hint">Deel alleen je vriendencode, nooit deze sleutel. Iedereen met deze sleutel kan jouw profiel gebruiken.</p>
+<button id="hideRecovery" class="secondary">Ik heb de sleutel veilig bewaard</button>
+</section>
+<div id="account" hidden>
+<section class="card"><h2>Profiel en delen</h2>
+<form id="profileForm">
+<label for="profileName">Weergavenaam</label><input id="profileName" maxlength="40" required autocomplete="nickname">
+<label><input id="shareGeneral" type="checkbox">Meedoen aan het algemene klassement</label>
+<p class="hint">Iedereen kan je weergavenaam, beste tijd en gemiddeld vermogen bekijken.</p>
+<label><input id="shareFriends" type="checkbox">KOM's delen met geaccepteerde vrienden</label>
+<p class="hint">Alleen jij en je geaccepteerde vrienden zien deze resultaten in Vrienden.</p>
+<p class="hint">Alleen nieuwe, volledige KOM-pogingen op ondersteunde vaste routes worden automatisch gedeeld, direct na de klim. Simulatie, ERG-trainingen en segmenten waarin je pauzeert worden niet ingestuurd. Oude lokale tijden blijven lokaal. Een rit negeren verwijdert een al gedeelde KOM niet.</p>
+<p class="hint">Delen uitzetten verbergt eerdere tijden in die categorie definitief. Opnieuw aanzetten deelt alleen nieuwe pogingen. Instellingen wijzigen wist nog niet verstuurde pogingen.</p>
+<div class="row"><button type="submit">Voorkeuren opslaan</button><button id="refresh" type="button" class="secondary">Vernieuwen</button></div>
+</form></section>
+<section class="card"><h2>Vrienden</h2>
+<p>Jouw vriendencode: <code id="friendCode"></code></p>
+<p class="hint">Stuur deze code naar je fietsmaatje. Een verzoek geeft pas toegang nadat de ander het accepteert.</p>
+<form id="friendForm"><label for="friendInput">Vriendencode van je fietsmaatje</label><input id="friendInput" required maxlength="12" pattern="[0-9a-fA-F]{12}" autocomplete="off" spellcheck="false">
+<div class="row"><button type="submit">Vriendschapsverzoek sturen</button></div></form>
+<h3>Ontvangen verzoeken</h3><div id="incoming"></div>
+<h3>Mijn vrienden</h3><div id="friends"></div>
+<h3>Verstuurde verzoeken</h3><div id="outgoing"></div>
+</section>
+<section class="card"><h2>Wachtrij</h2><p id="pending"></p>
+<button id="retry" class="secondary">Opnieuw versturen</button>
+<p class="hint">Bij een tijdelijke storing bewaren we pogingen op deze pc. Verstuur maximaal 20 pogingen per keer opnieuw. Laat deze pagina open tot het klaar is.</p>
+</section>
+</div>
+<section class="card"><h2>Klassement bekijken</h2>
+<p>Kies in <a href="/game">Ride</a> een vaste route en open de KOM-ranglijst. Daar vind je <strong>Lokaal</strong>, <strong>Algemeen</strong> en <strong>Vrienden</strong>.</p>
+<p class="hint">Alleen dezelfde route- en segmentversie worden vergeleken. Tijden zijn zelfgerapporteerd: dit is geen geverifieerde wedstrijdregistratie. Online beheer werkt alleen via localhost op je eigen pc.</p>
+</section>
+</main><script>
+const $=id=>document.getElementById(id);
+let busy=false,pendingCount=0;
+async function api(path,body){
+  const options=body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)};
+  const response=await fetch('/online-kom/'+path,options);
+  let data;try{data=await response.json();}catch(e){throw new Error('Online KOM is niet beschikbaar. Controleer of de app is bijgewerkt.');}
+  if(!response.ok||!data.ok)throw new Error(data.error||'Verzoek mislukt');
+  return data;
+}
+function profile(p){
+  $('signup').hidden=!!p;$('account').hidden=!p;
+  if(!p)return;
+  $('profileName').value=p.name;$('friendCode').textContent=p.friend_code;
+  $('shareGeneral').checked=p.share_general;$('shareFriends').checked=p.share_friends;
+}
+async function localStatus(){
+  const d=await api('status');profile(d.profile);
+  pendingCount=d.pending;
+  $('pending').textContent=d.pending+' poging(en) wachten op verzending.';
+  $('retry').disabled=!d.pending;
+  if(d.recovery_pending){
+    const recovery=await api('recovery');$('recoveryToken').textContent=recovery.token;$('recovery').hidden=false;
+  }
+  return d;
+}
+function people(id,items,actions){
+  const target=$(id);target.replaceChildren();
+  if(!Array.isArray(items)||!items.length){target.textContent='Nog niemand.';return;}
+  for(const person of items){
+    const row=document.createElement('div');row.className='person';
+    const name=document.createElement('span');name.textContent=person.name;row.append(name);
+    for(const [label,path] of actions){
+      const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=label;
+      button.onclick=()=>run(async()=>{
+        if(label==='Verwijderen'&&!confirm('Vriendschap met '+person.name+' verwijderen?'))return;
+        await api(path,{id:person.id});await refresh();$('message').textContent='Bijgewerkt.';
+      });row.append(button);
+    }
+    target.append(row);
+  }
+}
+async function refresh(){
+  const d=await api('me');profile(d.profile);
+  people('incoming',d.incoming,[['Accepteren','friends/accept'],['Weigeren','friends/remove']]);
+  people('friends',d.friends,[['Verwijderen','friends/remove']]);
+  people('outgoing',d.outgoing,[['Intrekken','friends/remove']]);
+  await localStatus();
+}
+async function run(work){
+  if(busy)return;busy=true;$('message').textContent='Even wachten...';
+  document.querySelectorAll('button').forEach(b=>b.disabled=true);
+  try{await work();}catch(e){$('message').textContent=e.message||'Geen verbinding. Je lokale KOM\'s blijven werken.';}
+  finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);$('retry').disabled=!pendingCount;}
+}
+$('registerForm').onsubmit=e=>{e.preventDefault();run(async()=>{
+  const d=await api('register',{name:$('newName').value});
+  $('recoveryToken').textContent=d.token;$('recovery').hidden=false;
+  profile(d.profile);$('message').textContent='Profiel aangemaakt. Bewaar eerst je herstelsleutel.';await refresh();
+});};
+$('restoreForm').onsubmit=e=>{e.preventDefault();run(async()=>{
+  await api('restore',{token:$('restoreToken').value.trim()});$('restoreToken').value='';
+  await refresh();$('message').textContent='Profiel hersteld.';
+});};
+$('hideRecovery').onclick=()=>run(async()=>{
+  await api('recovery/confirm',{});$('recoveryToken').textContent='';$('recovery').hidden=true;
+  $('message').textContent='Herstelsleutel bevestigd. Bewaar hem veilig.';
+});
+window.addEventListener('beforeunload',e=>{if(!$('recovery').hidden){e.preventDefault();e.returnValue='';}});
+$('profileForm').onsubmit=e=>{e.preventDefault();run(async()=>{
+  await api('profile',{name:$('profileName').value,share_general:$('shareGeneral').checked,share_friends:$('shareFriends').checked});
+  await refresh();$('message').textContent='Voorkeuren opgeslagen. Een geopende Ride-pagina gebruikt ze zodra je naar die tab teruggaat.';
+});};
+$('friendForm').onsubmit=e=>{e.preventDefault();run(async()=>{
+  await api('friends/request',{code:$('friendInput').value.trim()});$('friendInput').value='';
+  await refresh();$('message').textContent='Verzoek verstuurd. Je fietsmaatje moet het nog accepteren.';
+});};
+$('refresh').onclick=()=>run(async()=>{await refresh();$('message').textContent='Bijgewerkt.';});
+$('retry').onclick=()=>run(async()=>{
+  const d=await api('retry',{});await localStatus();
+  $('message').textContent=d.sent+' poging(en) verstuurd; '+d.pending+' resterend.';
+});
+run(async()=>{
+  const d=await localStatus();
+  if(d.configured)await refresh();
+  $('message').textContent=d.configured?'Profiel geladen.':'Maak een profiel aan of bekijk het algemene klassement in Ride.';
+});
+</script></body></html>

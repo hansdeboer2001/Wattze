@@ -5,6 +5,8 @@
 <style>
 body,#hud,#zCard,#komLive{font-family:"Segoe UI",system-ui,sans-serif}
 body{background:#0b0e14;color:#eee;margin:0;padding:12px;font-weight:600}
+#kom>div{box-sizing:border-box;min-width:0;overflow-wrap:anywhere}
+#komBody table{table-layout:fixed}
 h1{font-size:20px;margin:0 0 2px;font-weight:700}
 .sub{font-size:12px;color:#999;margin-bottom:8px}
 #hud{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0;align-items:stretch}
@@ -333,6 +335,8 @@ a{color:#4da3ff;font-size:13px}
 <div id="kom" style="display:none;position:fixed;inset:0;background:rgba(5,8,14,.9);align-items:center;justify-content:center;z-index:15;overflow:auto">
 <div style="background:#161b26;border-radius:12px;padding:20px;max-width:620px;width:92%;margin:20px">
 <h2 style="margin-top:0">KOM-ranglijst (top 5) &mdash; <span id="komCourse"></span></h2>
+<div class="row" role="group" aria-label="KOM-klassement"><button id="komLocal">Lokaal</button><button class="ghost" id="komGeneral">Algemeen</button><button class="ghost" id="komFriends">Vrienden</button><a href="/klassementen" target="_blank" rel="noopener" style="color:#7fb0ff">Profiel en vrienden</a></div>
+<p id="komOnlineStatus" role="status" style="font-size:13px;color:#aaa"></p>
 <div id="komBody"></div>
 <div class="row"><button class="ghost" id="btnKomReset" style="background:#7a2b2b">Wis records van deze route</button><button class="ghost" id="btnKomClose" style="background:#333">Sluiten</button></div>
 </div></div>
@@ -361,7 +365,7 @@ let rideKoms=[],rideSimUsed=false,rideShot=null;
 let sumP=0,cntP=0,maxP=0,sumHr=0,cntHr=0,sumCad=0,cntCad=0,route='free',sumP4=0,lastPosT=0;
 let nowT=0,dayPhase=0;
 let ergWorkout=null,ergOn=false,ergT=0,ergLastPost=-1,ergLastPostT=0,ergDone=false,ergScale=1;
-let segs=[],curSeg=-1,segT0=0,segSim0=0,segSumP=0,segCnt=0,ghostOn=true,segBest=null;
+let segs=[],curSeg=-1,segT0=0,segSim0=0,segSumP=0,segCnt=0,ghostOn=true,segBest=null,segOnlinePaused=false;
 let VGEAR_MAX=__VGEAR_MAX__,VGEAR_STEP=11/Math.max(1,VGEAR_MAX-1);
 let vgear=__VGEAR__;
 let CLICK={want:true,connected:false,battery:null,err:''};
@@ -2347,6 +2351,7 @@ function recordSeg(sg,t,avgP){
   komLiveRes={sg:sg,date:entry.date};komLiveUntil=nowT+12;
   rideKoms.push({label:sg.label,time:t,pr:isPR});
   showSegResult(sg,t,isPR,prev);
+  publishOnlineKom(sg,t,avgP);
 }
 function vsPeerHtml(sg){
   if(!MP.room||!multiPeer||multiPeer.age>=3||!sg)return '';
@@ -2502,11 +2507,77 @@ function renderKomBoards(target,onlyIdx){
         :'<div style="color:#777;font-size:13px">Nog geen resultaten.</div>')+'</div>';
   }).join('');
 }
+let komScope='local',komOnlyIdx=null,komRequest=0,onlineKomSharing=false;
+function refreshOnlineKomStatus(){return fetch('/online-kom/status').then(r=>r.json()).then(d=>{
+  onlineKomSharing=!!(d.ok&&d.profile&&(d.profile.share_general||d.profile.share_friends));
+}).catch(()=>{onlineKomSharing=false;});}
+refreshOnlineKomStatus();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshOnlineKomStatus();});
+function onlineKomCourse(){
+  const r=ROUTES.find(r=>r.id===route);
+  return !!(r&&r.fixed&&r.ele&&!route.startsWith('eigen-')&&r.segs&&r.segs.length&&r.segs.every(s=>Number.isFinite(s.end)));
+}
+function publishOnlineKom(sg,t,avgP){
+  if(!onlineKomSharing||!onlineKomCourse()||rideSimUsed||simOn||ergOn||segOnlinePaused)return;
+  fetch('/online-kom/attempt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    route_id:route,segment:sg.idx,time:t,avgP:Math.round(avgP),simulated:rideSimUsed||simOn,
+    course:{pts:course.pts,step:course.step,segs:segs.map(s=>({at:s.at,end:s.end}))}
+  })}).then(r=>r.json()).then(d=>{
+    document.getElementById('komOnlineStatus').textContent=!d.ok?'Online KOM: '+d.error:
+      d.queued?'Online poging bewaard. Verstuur opnieuw via Profiel en vrienden.':
+      d.skipped?'Online poging niet gedeeld.':'Online KOM gedeeld.';
+  }).catch(()=>{document.getElementById('komOnlineStatus').textContent='Online KOM niet bereikbaar. Je lokale tijd is bewaard.';});
+}
+async function showKomScope(scope){
+  komScope=scope;
+  const ticket=++komRequest,target=document.getElementById('komBody'),status=document.getElementById('komOnlineStatus');
+  for(const [id,key] of [['komLocal','local'],['komGeneral','general'],['komFriends','friends']]){
+    const b=document.getElementById(id);b.classList.toggle('ghost',scope!==key);b.setAttribute('aria-pressed',String(scope===key));
+  }
+  document.getElementById('btnKomReset').style.display=scope==='local'?'':'none';
+  if(scope==='local'){status.textContent='Lokale tijden blijven beschikbaar zonder internet.';renderKomBoards(target,komOnlyIdx);return;}
+  status.textContent='Online: beste tijd per rijder. Zelfgerapporteerde resultaten, geen geverifieerde wedstrijdtijden.';
+  target.replaceChildren();
+  if(!onlineKomCourse()){target.textContent='Online KOM\'s zijn alleen beschikbaar voor vaste routes met expliciete segmentgrenzen.';return;}
+  const selected=segs.filter(s=>komOnlyIdx==null||s.idx===komOnlyIdx);
+  if(!selected.length){target.textContent='Deze route heeft geen KOM-segmenten.';return;}
+  for(const sg of selected){
+    if(ticket!==komRequest)return;
+    const section=document.createElement('div'),heading=document.createElement('h3'),info=document.createElement('p');
+    heading.textContent=sg.label;info.textContent='Laden...';section.append(heading,info);target.append(section);
+    try{
+      const q=new URLSearchParams({route_id:route,segment:String(sg.idx),scope});
+      const response=await fetch('/online-kom/leaderboard?'+q),d=await response.json();
+      if(ticket!==komRequest)return;
+      if(!response.ok||!d.ok)throw new Error(d.error||'Klassement niet beschikbaar');
+      const entries=(Array.isArray(d.entries)?d.entries:[]).slice(0,5);
+      info.textContent=entries.length?'':'Nog geen gedeelde resultaten.';
+      if(entries.length){
+        const table=document.createElement('table');table.style.cssText='width:100%;font-size:13px;text-align:left';
+        const head=document.createElement('tr');
+        for(const title of ['#','Naam','Tijd','Gem.']){const th=document.createElement('th');th.textContent=title;head.append(th);}
+        table.append(head);
+        entries.forEach((e,i)=>{
+          const row=document.createElement('tr');
+          for(const value of [i+1,e.name,Number.isFinite(e.time)?fmtClock(e.time):'?',Number.isFinite(e.avgP)?Math.round(e.avgP)+' W':'?']){
+            const cell=document.createElement('td');cell.textContent=String(value);row.append(cell);
+          }
+          table.append(row);
+        });
+        section.append(table);
+      }
+    }catch(e){info.textContent=e.message||'Geen verbinding. Je lokale KOM\'s blijven beschikbaar.';}
+  }
+}
 function openKom(onlyIdx){
+  komOnlyIdx=onlyIdx==null?null:onlyIdx;
   document.getElementById('komCourse').textContent=course.name+' · '+course.km+' km';
-  renderKomBoards(document.getElementById('komBody'),onlyIdx);
+  showKomScope('local');
   document.getElementById('kom').style.display='flex';
 }
+document.getElementById('komLocal').onclick=()=>showKomScope('local');
+document.getElementById('komGeneral').onclick=()=>showKomScope('general');
+document.getElementById('komFriends').onclick=()=>showKomScope('friends');
 document.getElementById('btnKom').onclick=()=>openKom();
 document.getElementById('btnKomClose').onclick=()=>{document.getElementById('kom').style.display='none';};
 document.getElementById('btnKomReset').onclick=()=>{
@@ -2544,7 +2615,7 @@ function startRide(){
   buildRoute();setupTraffic();loadGhost();
   ghostRec=[];ghostSampleT=Date.now();ghostCrank=0;pwrHist=[];ridePwr=[];pwrT=performance.now();pwrAcc=0;pwrAccT=0;pwrLastNow=0;pwrWin=[];hrHist=[];hrT=0;
   ergT=0;ergLastPost=-1;ergLastPostT=0;ergDone=false;
-  curSeg=-1;segT0=0;segSim0=0;segSumP=0;segCnt=0;komLiveRes=null;finishT=null;
+  curSeg=-1;segT0=0;segSim0=0;segSumP=0;segCnt=0;komLiveRes=null;finishT=null;segOnlinePaused=false;
   simT=inRoom?(worldT||0):0;rideT0=performance.now()/1000-simT;accumulator=0;lastKom=null;peerKomSeen='';
   if(late)t0=Date.now()-simT*1000;
   pendingRide=null;
@@ -3194,7 +3265,7 @@ document.getElementById('btnSim').onclick=()=>{
   const p=document.getElementById('simPanel');
   p.style.display=p.style.display==='flex'?'none':'flex';
 };
-document.getElementById('simToggle').onclick=()=>{simOn=!simOn;if(simOn&&running)rideSimUsed=true;simApply();};
+document.getElementById('simToggle').onclick=()=>{simOn=!simOn;if(simOn&&(running||ridePaused))rideSimUsed=true;simApply();};
 document.getElementById('simDown').onclick=()=>{simIn.value=Math.max(0,simW()-10);simApply();};
 document.getElementById('simUp').onclick=()=>{simIn.value=Math.min(2000,simW()+10);simApply();};
 simIn.oninput=simApply;
@@ -3245,6 +3316,8 @@ function crossFinish(){
 }
 function pauseRide(){
   if(!running)return;
+  // A paused segment is not comparable with an uninterrupted online attempt.
+  if(curSeg>=0)segOnlinePaused=true;
   ridePaused=true;
   pauseWall=Date.now();
   fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'stop'})});
@@ -3253,6 +3326,7 @@ function pauseRide(){
   finishRide(true);
 }
 function continueRide(){
+  if(simOn)rideSimUsed=true;
   const gap=Math.max(0,Date.now()-pauseWall);
   if(t0)t0+=gap;
   simPause+=gap/1000;
@@ -3589,6 +3663,7 @@ function stepPhysics(dt){
   el=t0?(Date.now()-t0)/1000:0;
   let draftRaw=0;
   if(running){
+    if(simOn)rideSimUsed=true;
     prevDist = dist;
     if(useWorldNpcs()&&riders.length&&riders[0].world)placeWorldNpcs(simT);
     for(const r of riders){
@@ -3646,7 +3721,7 @@ function stepPhysics(dt){
     climbed+=Math.max(0,elev(dist)-prevE);
     for(let i=0;i<segs.length;i++){
       const sg=segs[i];
-      if(prevDist<sg.at&&dist>=sg.at){curSeg=i;segT0=el;segSim0=simT;segSumP=0;segCnt=0;segBest=komBest(sg.idx);komProjLive=null;segPartial=false;showSegStart(sg,segBest);}
+      if(prevDist<sg.at&&dist>=sg.at){curSeg=i;segT0=el;segSim0=simT;segSumP=0;segCnt=0;segBest=komBest(sg.idx);komProjLive=null;segPartial=false;segOnlinePaused=false;showSegStart(sg,segBest);}
       if(curSeg===i){
         segSumP+=power;segCnt++;
         if(dist>=sg.end){if(!segPartial)recordSeg(sg,Math.max(0,simT-segSim0),segSumP/Math.max(1,segCnt));curSeg=-1;segPartial=false;}
