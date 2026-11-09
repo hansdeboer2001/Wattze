@@ -262,6 +262,11 @@ De variabele geldt voor processen die vanuit dit PowerShell-venster worden gesta
 een gewone dubbelklik neemt deze tijdelijke instelling niet over. Voor een exe
 is een nieuwe build met deze wijziging nodig; start die ook vanuit dit venster.
 
+De app identificeert online aanvragen met `User-Agent: Wattze/1.0 (+https://wattze.com)`.
+Dit lost de waargenomen Cloudflare-blokkade van de standaard Python-client
+(HTTP 403, fout 1010) op. Gebruik bij die fout de bijgewerkte broncode of een
+nieuwe build en herstart de app; alleen de browserpagina verversen is niet genoeg.
+
 ## Ritten En Gegevens
 
 Opgeslagen gegevens staan in `WattzeRitten/` (automatisch aangemaakt):
