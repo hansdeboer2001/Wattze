@@ -448,6 +448,58 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertTrue(traffic["droppedAhead"])
         self.assertTrue(traffic["oncomerAhead"])
 
+    def test_foreground_buildings_are_larger_without_scaling_the_background(self):
+        self.page.goto(self.base + "/game")
+        scenery = self.page.evaluate("""() => {
+            startRide();
+            Wref = 800;
+            const houses = [], mills = [], silos = [], lamps = [];
+            const origHouse = scHouse, origMill = scMill, origSilo = scSilo, origLamp = scLamp;
+            scHouse = (x, y, w, h, wall, roof, o) => houses.push({x, s: o && o.s, w});
+            scMill = (x, y, s) => mills.push(s);
+            scSilo = (x, y, s) => silos.push(s);
+            scLamp = (x, y, s) => lamps.push(s);
+            const near = (value, expected) => Math.abs(value - expected) < 0.001;
+            const fs = FRONT_HOUSE;
+            for (const kind of [0, 1, 2, 3, 5, 4]) drawMark(kind, dist);
+            const alps = isAlps;
+            isAlps = () => true;
+            const beforeAlps = houses.length;
+            drawMark(1, dist);
+            drawMark(3, dist);
+            isAlps = alps;
+            const riderX = Wref * 0.37;
+            const at = (screenX) => dist + (screenX - riderX) / XS;
+            const beforeEdge = houses.length;
+            drawMark(4, at(-400));
+            const inside = houses.length > beforeEdge;
+            drawMark(4, at(-500));
+            const outside = houses.length === beforeEdge + 1;
+            scHouse = origHouse; scMill = origMill; scSilo = origSilo; scLamp = origLamp;
+            const village = houses.slice(0, 5);
+            const gaps = village.slice(1).map((house, i) => house.x - village[i].x - (house.w * house.s + village[i].w * village[i].s) / 2);
+            return {
+                factor: fs, edge: FRONT_EDGE,
+                village: village.every(house => near(house.s, 2.15 * fs)),
+                gaps: gaps.every(gap => near(gap, 3)),
+                farm: near(houses[5].s, 2.35 * fs) && near(houses[6].s, 2.2 * fs) && near(silos[0], 1.7 * fs),
+                barn: near(houses[7].s, 2.45 * fs),
+                mill: near(mills[0], 2.15 * fs),
+                row: houses.slice(8, 12).every(house => near(house.s, 2.05 * fs)),
+                single: near(houses[12].s, 2.5 * fs),
+                alpsFarm: near(houses[beforeAlps].s, 2.35 * fs) && near(houses[beforeAlps + 1].s, 2.2 * fs),
+                alpsChalet: near(houses[beforeAlps + 2].s, 2.4 * fs),
+                lamps: lamps.every(s => s === 1.15 || s === 1.1),
+                back: drawBackLife.toString().includes("s:0.62") && !drawBackLife.toString().includes("FRONT_HOUSE"),
+                chapel: drawFrontScenery.toString().includes("1.35*FRONT_HOUSE"),
+                inside, outside
+            };
+        }""")
+        self.assertEqual(scenery["factor"], 1.45)
+        self.assertEqual(scenery["edge"], 420)
+        for key in ("village", "gaps", "farm", "barn", "mill", "row", "single", "alpsFarm", "alpsChalet", "lamps", "back", "chapel", "inside", "outside"):
+            self.assertTrue(scenery[key], key)
+
     def test_ride_menu_pauses_scene_and_saves_route_feel_without_ending(self):
         settings, pauses = [], []
         self.page.route("**/settings", lambda route: settings.append(route.request.post_data_json) or route.fulfill(json={"ok": True}))

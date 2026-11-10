@@ -14,7 +14,8 @@ hieronder per onderdeel bijgehouden.
 - Punt 5: alleen de Windows-pc wakker houden tijdens rit en pauze geimplementeerd; praktijkcontrole en eventuele klassieke screensaver blijven open. Telefoon valt buiten scope.
 - Punt 12: verouderde pauze-/hervatmelding na beeindigen hersteld en met vier extra Edge-tests gecontroleerd; praktijkcontrole staat nog open.
 - Punt 4: lokale NPC's staan vóór en achter de speler, in een middenstand tussen de oude en de te drukke verdeling. Serververkeer is ongewijzigd. Praktijkcontrole staat nog open.
-- Verificatie: alle 146 tests slagen, inclusief Edge.
+- Punt 6: voorgrondgebouwen zijn 45% groter; achtergrond is ongewijzigd. Praktijkcontrole in venster en fullscreen staat nog open.
+- Verificatie: alle 147 tests slagen, inclusief Edge.
 - Punt 11: menuknop linksonder toegevoegd; Stop-knop verwijderd. Pauze zet de scène stil zonder eindkaart. Praktijkcontrole staat nog open.
 - Punt 2: kruisje op de telefoonafstandsbediening verborgen bij aanraakbediening, ook liggend. Een smal desktopvenster behoudt de link.
 
@@ -230,7 +231,8 @@ Bron: `wattze/keep_awake.py`, `wattze_game.py`, `wattze/rides.py`,
 
 ## 6. Voorgrondhuisjes vergroten
 
-- [ ] Voorgrondgebouwen groter maken ten opzichte van de fietser, zonder de achtergrond mee te vergroten.
+- [x] Voorgrondgebouwen ongeveer 45% groter maken ten opzichte van de fietser, zonder de achtergrond mee te vergroten.
+- [ ] In een normaal venster en fullscreen controleren dat dorp, rijwoningen, los huis en boerderij groter ogen en de achtergrond gelijk blijft.
 
 ### Bevindingen
 
@@ -239,9 +241,10 @@ dak maar weinig hoger dan de fietser. Dat ondersteunt de gemelde schaalafwijking
 
 ### Vervolg
 
-Alleen de voorgrondgebouwen vergroten. Afstanden tussen gebouwen en het
-verschijnen aan de schermranden mee controleren. Achtergrondhuizen en algemene
-scenezoom ongemoeid laten.
+Dorp, rijwoningen, los huis, boerderij, schuur, silo, molen en kapel zijn 45%
+groter. De onderlinge afstand schaalt mee en gebouwen worden tot 420 pixels
+buiten beeld nog getekend, zodat ze niet aan de rand verschijnen. Achtergrond,
+lantaarns en scenezoom zijn ongewijzigd. De praktijkcontrole staat nog open.
 
 ### Aandachtspunten
 
@@ -495,5 +498,5 @@ Bron: `pages/game.html` (`finishRide`, `btnEndRide`),
 2. Ventilatorvertraging (punt 3) is geimplementeerd; alleen de fysieke praktijkcontrole staat nog open.
 3. Pc-schermwakkerhouding (punt 5) is geimplementeerd; werking tijdens rit/pauze en vrijgave na beeindigen nog in de praktijk controleren. Telefoon is uitgesloten; een klassieke screensaver blijft zo nodig een afzonderlijk aandachtspunt.
 4. Menuknop (punt 11) is toegevoegd. Nog controleren dat pauze de scène stilzet en beëindigen via het menu de samenvatting opent.
-5. Gebouwen, fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 6, 10 en 8). NPC-dichtheid (punt 4) nog in een rit controleren. Het mobiele kruisje (punt 2) nog op een echte telefoon controleren.
+5. Fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 10 en 8). Voorgrondgebouwen (punt 6) nog in venster en fullscreen controleren. NPC-dichtheid (punt 4) nog in een rit controleren. Het mobiele kruisje (punt 2) nog op een echte telefoon controleren.
 6. De resterende foutafhandeling van trainercommando's uit punt 7 gericht onderzoeken; normale SIM-werking bij 0% is al bevestigd.

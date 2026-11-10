@@ -1700,50 +1700,52 @@ function drawBackLife(W){
   }
 }
 function frontBase(mx,depth){return yAt0(mx)+22+depth*18;}
+const FRONT_HOUSE=1.45,FRONT_EDGE=420;
 function drawMark(kind,mx){
   const riderX=Wref*0.37;
   const x=riderX+(mx-dist)*XS;
-  if(x<-220||x>Wref+220) return;
+  if(x<-FRONT_EDGE||x>Wref+FRONT_EDGE) return;
   const y=frontBase(mx,0.55);
   const alps=isAlps();
+  const fs=FRONT_HOUSE;
   if(kind===0){
     const n=5;
-    const sc=2.15,gap=3;
-    let cursor=x-150;
+    const sc=2.15*fs,gap=3;
+    let cursor=x-150*fs;
     for(let i=0;i<n;i++){
       const st=alps?scStyle(i,'chalet'):scStyle(mx+i);
       const w=28+sh(mx+i)*8;
       scHouse(cursor+w*sc/2,y+(i%2)*3,w,24+sh(i+3)*4,st.wall,st.roof,{s:sc,timber:st.timber,chalet:st.chalet,chimney:i%2===0});
       cursor+=w*sc+gap;
     }
-    scLamp(x+150,yAt0(mx)+4,1.15);
+    scLamp(x+150*fs,yAt0(mx)+4,1.15);
   }else if(kind===1){
     const st=scStyle(mx);
-    scHouse(x-36,y,32,28,st.wall,st.roof,{s:2.35,chalet:st.chalet,timber:st.timber,chimney:true});
-    if(alps) scHouse(x+48,y+4,40,24,'#c4a882','#3e4654',{s:2.2,chalet:true});
+    scHouse(x-36*fs,y,32,28,st.wall,st.roof,{s:2.35*fs,chalet:st.chalet,timber:st.timber,chimney:true});
+    if(alps) scHouse(x+48*fs,y+4,40,24,'#c4a882','#3e4654',{s:2.2*fs,chalet:true});
     else{
-      scHouse(x+46,y+6,46,24,'#6e4b32','#4a3428',{s:2.2,big:true});
-      scSilo(x+96,y-2,1.7);
+      scHouse(x+46*fs,y+6,46,24,'#6e4b32','#4a3428',{s:2.2*fs,big:true});
+      scSilo(x+96*fs,y-2,1.7*fs);
     }
   }else if(kind===2){
-    scHouse(x,y+4,52,26,'#6e4b32','#5c4030',{s:2.45,big:true,flat:true});
+    scHouse(x,y+4,52,26,'#6e4b32','#5c4030',{s:2.45*fs,big:true,flat:true});
   }else if(kind===3){
-    if(alps) scHouse(x,y,40,26,'#c4a882','#3e4654',{s:2.4,chalet:true,chimney:true});
-    else scMill(x,y-4,2.15);
+    if(alps) scHouse(x,y,40,26,'#c4a882','#3e4654',{s:2.4*fs,chalet:true,chimney:true});
+    else scMill(x,y-4,2.15*fs);
   }else if(kind===5){
     const rows=alps
       ?[scStyle(1,'chalet'),scStyle(2,'chalet'),scStyle(3,'chalet'),scStyle(4,'chalet')]
       :[{wall:'#a85c48',roof:'#6e3b34'},{wall:'#e7e0d2',roof:'#4a5568'},{wall:'#f3ead8',roof:'#5c4030',timber:true},{wall:'#e4dcc8',roof:'#7a3b32'}];
-    let cursor=x-140;
+    let cursor=x-140*fs;
     rows.forEach((st,i)=>{
-      const w=32,sw=w*2.05;
-      scHouse(cursor+sw/2,y,w,26,st.wall,st.roof,{s:2.05,timber:st.timber,chalet:st.chalet,chimney:i===1});
+      const w=32,sw=w*2.05*fs;
+      scHouse(cursor+sw/2,y,w,26,st.wall,st.roof,{s:2.05*fs,timber:st.timber,chalet:st.chalet,chimney:i===1});
       cursor+=sw+4;
     });
   }else{
     const st=scStyle(mx);
-    scHouse(x,y,36,30,st.wall,st.roof,{s:2.5,timber:st.timber,chalet:st.chalet,chimney:true});
-    scLamp(x+42,yAt0(mx)+6,1.1);
+    scHouse(x,y,36,30,st.wall,st.roof,{s:2.5*fs,timber:st.timber,chalet:st.chalet,chimney:true});
+    scLamp(x+42*fs,yAt0(mx)+6,1.1);
   }
 }
 let Wref=800;
@@ -1772,7 +1774,7 @@ function drawFrontScenery(W){
       ctx.fillStyle=sh(x+1)<0.5?'#7d828c':'#6a7078';
       ctx.fillRect(x,yy-h,7,h);
     }
-    if(sh(k*9)<0.7) scChapel(riderX+(mx+28-dist)*XS,yAt0(mx+28)+16,1.35);
+    if(sh(k*9)<0.7) scChapel(riderX+(mx+28-dist)*XS,yAt0(mx+28)+16,1.35*FRONT_HOUSE);
   }
 }
 function drawSceneryLights(){
