@@ -931,28 +931,52 @@ function npcVel(wx,pwr,dir){
   const g=gradeAt(wx)*(dir<0?-1:1);
   return Math.max(0.6,targetSpeed(pwr,g,0,78,1,crrAt(wx)));
 }
+const NPC_AHEAD=6,NPC_BEHIND=3,NPC_ONCOMING=8,NPC_EDGE=180,NPC_GAP=110,NPC_ON_GAP=120;
+function localRider(i,wx,fromBehind){
+  const pwr=fromBehind?220+hash1(i*2.4)*80:npcPower(hash1(i*4.2));
+  return {wx:wx,pwr:pwr,spd:npcVel(wx,pwr,1),scale:0.9+hash1(i*3.3)*0.2,
+    pct:0.58+hash1(i*5.3)*0.30,cf:RIDER_COLORS[i%RIDER_COLORS.length],
+    cj:RIDER_COLORS[(i*3+2)%RIDER_COLORS.length],ro:hash1(i*7.7)*6,
+    cad:65+hash1(i*6.6)*30,crank:Math.random()*Math.PI*2,
+    wasAhead:!fromBehind,init:false,fromBehind:!!fromBehind};
+}
 function setupRiders(){
   riders=[];overtaken=0;passedBy=0;
-  const n=10;
-  for(let i=0;i<n;i++){
-    const wx=dist+60+i*150+Math.random()*60,pwr=npcPower(hash1(i*4.2));
-    riders.push({wx:wx,pwr:pwr,spd:npcVel(wx,pwr,1),scale:0.9+hash1(i*3.3)*0.2,
-      pct:0.58+hash1(i*5.3)*0.30,cf:RIDER_COLORS[i%RIDER_COLORS.length],
-      cj:RIDER_COLORS[(i*3+2)%RIDER_COLORS.length],ro:hash1(i*7.7)*6,
-      cad:65+hash1(i*6.6)*30,crank:Math.random()*Math.PI*2,wasAhead:true,init:false});
-  }
+  for(let i=0;i<NPC_AHEAD;i++) riders.push(localRider(i,dist+40+i*NPC_GAP+Math.random()*20,false));
+  for(let i=0;i<NPC_BEHIND;i++) riders.push(localRider(NPC_AHEAD+i,dist-NPC_EDGE-i*NPC_GAP-Math.random()*20,true));
 }
-function spawnAhead(){return dist+220+Math.random()*1400;}
+function placeLocalRider(r,behind){
+  r.fromBehind=behind;
+  r.wx=behind?dist-NPC_EDGE-Math.random()*80:dist+NPC_EDGE+Math.random()*80;
+  r.wasAhead=!behind;r.init=false;
+  r.pwr=behind?220+hash1(r.wx*1.7)*80:npcPower(hash1(r.wx*1.9));
+  r.spd=npcVel(r.wx,r.pwr,1);
+  r.cad=65+hash1(r.wx)*30;r.pct=0.58+hash1(r.wx*1.7)*0.30;r.ro=hash1(r.wx*2.1)*6;
+}
+function recycleLocalRider(r){
+  if(r.world)return;
+  const gap=r.wx-dist;
+  if(r.fromBehind){if(gap>NPC_EDGE)placeLocalRider(r,true);}
+  else if(gap<-NPC_EDGE||gap>700)placeLocalRider(r,false);
+}
 function setupOncomers(){
   oncomers=[];
-  const n=10;
-  for(let i=0;i<n;i++){
-    const wx=(i+1)/n*course.total,pwr=npcPower(hash1(i*8.8));
+  for(let i=0;i<NPC_ONCOMING;i++){
+    const wx=dist+80+i*NPC_ON_GAP+Math.random()*20,pwr=npcPower(hash1(i*8.8));
     oncomers.push({wx:wx,pwr:pwr,spd:npcVel(wx,pwr,-1),scale:0.9+hash1(i*3.7)*0.2,
       pct:0.14+hash1(i*9.1)*0.26,cf:RIDER_COLORS[i%RIDER_COLORS.length],
-      cj:RIDER_COLORS[(i*2+3)%RIDER_COLORS.length],ro:Math.random()*6,
-      cad:70+Math.random()*25,crank:Math.random()*Math.PI*2});
+      cj:RIDER_COLORS[(i*2+3)%RIDER_COLORS.length],ro:hash1(i*1.4)*6,
+      cad:70+hash1(i*2.8)*25,crank:Math.random()*Math.PI*2});
   }
+}
+function recycleOncomer(r){
+  if(r.world)return;
+  let far=dist+NPC_EDGE;
+  for(const o of oncomers) if(o!==r&&!o.world) far=Math.max(far,o.wx);
+  r.wx=far+NPC_ON_GAP-20+Math.random()*40;
+  r.pwr=npcPower(hash1(r.wx*2.7));
+  r.spd=npcVel(r.wx,r.pwr,-1);
+  r.cad=65+hash1(r.wx)*30;r.pct=0.14+hash1(r.wx*3.3)*0.26;r.ro=hash1(r.wx*2.1)*6;
 }
 function buildWorldNpcs(){
   const total=Math.max(500,course.total||1000);
@@ -3787,7 +3811,7 @@ function stepPhysics(dt){
         if(r.pwr==null)r.pwr=npcPower(hash1(r.wx*1.3));
         r.spd=npcVel(r.wx,r.pwr,1);
         r.wx+=r.spd*dt;
-        if(r.wx<dist-160||r.wx>dist+1700){r.wx=spawnAhead();r.pwr=npcPower(hash1(r.wx*1.9));r.spd=npcVel(r.wx,r.pwr,1);r.cad=65+hash1(r.wx)*30;r.pct=0.58+hash1(r.wx)*0.30;r.ro=hash1(r.wx*1.7)*6;r.wasAhead=true;r.init=true;continue;}
+        recycleLocalRider(r);
       }
       const ahead=r.wx>dist;
       if(r.init&&Math.abs(r.wx-dist)<80){if(r.wasAhead&&!ahead)overtaken++;else if(!r.wasAhead&&ahead)passedBy++;}
@@ -3821,7 +3845,7 @@ function stepPhysics(dt){
       if(r.pwr==null)r.pwr=npcPower(hash1(r.wx*2.2));
       r.spd=npcVel(r.wx,r.pwr,-1);
       r.wx-=r.spd*dt;
-      if(r.wx<dist-160){r.wx=spawnAhead();r.pwr=npcPower(hash1(r.wx*2.7));r.spd=npcVel(r.wx,r.pwr,-1);r.cad=65+hash1(r.wx)*30;r.pct=0.14+hash1(r.wx*3.3)*0.26;r.ro=hash1(r.wx*2.1)*6;}
+      if(r.wx<dist-NPC_EDGE)recycleOncomer(r);
     }
     if(!pwrWin.length||simT-pwrWin[pwrWin.length-1].t>=0.1)pwrWin.push({t:simT,p:power});
     while(pwrWin.length&&simT-pwrWin[0].t>5)pwrWin.shift();

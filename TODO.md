@@ -13,7 +13,8 @@ hieronder per onderdeel bijgehouden.
 - Punt 3: tien seconden vertraagd verbergen op beide schermen geimplementeerd en automatisch getest; fysieke ventilatorcontrole staat nog open.
 - Punt 5: alleen de Windows-pc wakker houden tijdens rit en pauze geimplementeerd; praktijkcontrole en eventuele klassieke screensaver blijven open. Telefoon valt buiten scope.
 - Punt 12: verouderde pauze-/hervatmelding na beeindigen hersteld en met vier extra Edge-tests gecontroleerd; praktijkcontrole staat nog open.
-- Verificatie: alle 145 tests slagen, inclusief Edge.
+- Punt 4: lokale NPC's staan vóór en achter de speler, in een middenstand tussen de oude en de te drukke verdeling. Serververkeer is ongewijzigd. Praktijkcontrole staat nog open.
+- Verificatie: alle 146 tests slagen, inclusief Edge.
 - Punt 11: menuknop linksonder toegevoegd; Stop-knop verwijderd. Pauze zet de scène stil zonder eindkaart. Praktijkcontrole staat nog open.
 - Punt 2: kruisje op de telefoonafstandsbediening verborgen bij aanraakbediening, ook liggend. Een smal desktopvenster behoudt de link.
 
@@ -147,7 +148,8 @@ Bron: `wattze/fan.py`, `wattze/telemetry.py`, `wattze/http_handler.py`,
 
 ## 4. Meer NPC's
 
-- [ ] De lokale dichtheid van NPC's verhogen, niet alleen het totale aantal.
+- [x] De lokale dichtheid van NPC's verhogen, zowel vóór als achter de speler.
+- [ ] In een echte rit controleren dat ontmoetingen regelmatiger zijn en niemand zichtbaar in beeld springt.
 
 ### Bevindingen
 
@@ -161,9 +163,15 @@ aantallen aanpassen verandert dat verkeer niet.
 
 ### Vervolg
 
-Aantallen en start-/respawnverdeling samen aanpassen, zodat ontmoetingen
-regelmatiger plaatsvinden zonder zichtbaar in beeld te springen. Solo,
-multiplayerfallback en servergestuurd verkeer afzonderlijk controleren.
+Lokaal staan er 6 meerijders vóór de speler, met ongeveer 110 meter
+tussenruimte, en 3 meerijders achter de speler, net buiten beeld. Dat ligt
+tussen de oude 10 verre meerijders en de eerdere 8 plus 6. Achterblijvers
+blijven achter tot ze voorbij zijn en vooraan uit beeld rijden; daarna komen
+ze opnieuw van achteren. Langzamere fietsers die meer dan 180 meter achter
+raken, komen later weer net buiten beeld vóór de speler. Acht tegenliggers
+staan ongeveer 120 meter uit elkaar in het komende stuk en komen na passeren
+achteraan die rij terug. Servergestuurde en wereld-NPC's gebruiken deze
+verdeling niet. De praktijkcontrole staat nog open.
 
 ### Aandachtspunten
 
@@ -487,5 +495,5 @@ Bron: `pages/game.html` (`finishRide`, `btnEndRide`),
 2. Ventilatorvertraging (punt 3) is geimplementeerd; alleen de fysieke praktijkcontrole staat nog open.
 3. Pc-schermwakkerhouding (punt 5) is geimplementeerd; werking tijdens rit/pauze en vrijgave na beeindigen nog in de praktijk controleren. Telefoon is uitgesloten; een klassieke screensaver blijft zo nodig een afzonderlijk aandachtspunt.
 4. Menuknop (punt 11) is toegevoegd. Nog controleren dat pauze de scène stilzet en beëindigen via het menu de samenvatting opent.
-5. NPC-dichtheid, gebouwen, fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 4, 6, 10 en 8). Het mobiele kruisje (punt 2) nog op een echte telefoon controleren.
+5. Gebouwen, fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 6, 10 en 8). NPC-dichtheid (punt 4) nog in een rit controleren. Het mobiele kruisje (punt 2) nog op een echte telefoon controleren.
 6. De resterende foutafhandeling van trainercommando's uit punt 7 gericht onderzoeken; normale SIM-werking bij 0% is al bevestigd.

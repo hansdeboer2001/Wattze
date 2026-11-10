@@ -408,6 +408,46 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.evaluate("ridePaused || running"))
         self.assertFalse(self.page.locator("#btnMenu").is_visible())
 
+    def test_local_npcs_start_ahead_and_behind_without_popping_into_view(self):
+        self.page.goto(self.base + "/game")
+        traffic = self.page.evaluate("""() => {
+            startRide();
+            const ahead = riders.filter(r => !r.world && !r.fromBehind);
+            const behind = riders.filter(r => !r.world && r.fromBehind);
+            const chaser = behind[0];
+            chaser.wx = dist + NPC_EDGE + 20;
+            recycleLocalRider(chaser);
+            const dropped = ahead[0];
+            dropped.wx = dist - NPC_EDGE - 20;
+            recycleLocalRider(dropped);
+            const droppedAhead = dropped.wx >= dist + NPC_EDGE && !dropped.fromBehind;
+            dropped.world = true;
+            dropped.wx = dist + 900;
+            const protectedWx = dropped.wx;
+            recycleLocalRider(dropped);
+            const oncomer = oncomers[0];
+            oncomer.wx = dist - NPC_EDGE - 10;
+            recycleOncomer(oncomer);
+            return {
+                ahead: ahead.length, behind: behind.length, oncoming: oncomers.length,
+                aheadNear: ahead.filter(r => r !== dropped).every(r => r.wx > dist && r.wx < dist + 700),
+                behindFar: behind.filter(r => r !== chaser).every(r => r.wx <= dist - NPC_EDGE),
+                oncomingNear: oncomers.every(r => r.wx > dist && r.wx < dist + 1400),
+                chaserBehind: chaser.wx <= dist - NPC_EDGE && chaser.fromBehind,
+                droppedAhead: droppedAhead && protectedWx === dropped.wx,
+                oncomerAhead: oncomer.wx >= dist + NPC_EDGE
+            };
+        }""")
+        self.assertEqual(traffic["ahead"], 6)
+        self.assertEqual(traffic["behind"], 3)
+        self.assertEqual(traffic["oncoming"], 8)
+        self.assertTrue(traffic["aheadNear"])
+        self.assertTrue(traffic["behindFar"])
+        self.assertTrue(traffic["oncomingNear"])
+        self.assertTrue(traffic["chaserBehind"])
+        self.assertTrue(traffic["droppedAhead"])
+        self.assertTrue(traffic["oncomerAhead"])
+
     def test_ride_menu_pauses_scene_and_saves_route_feel_without_ending(self):
         settings, pauses = [], []
         self.page.route("**/settings", lambda route: settings.append(route.request.post_data_json) or route.fulfill(json={"ok": True}))
