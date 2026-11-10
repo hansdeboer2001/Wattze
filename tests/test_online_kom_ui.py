@@ -335,8 +335,10 @@ class OnlineKOMBrowserTests(unittest.TestCase):
             t0 = Date.now() - 60000; simT = 60; dist = 40; spd = 0;
             pauseRide();
         }""")
-        self.assertTrue(self.page.locator("#btnContinue").is_visible())
-        self.assertEqual(self.page.locator("#finishTitle").text_content(), "Rit gepauzeerd")
+        self.assertFalse(self.page.locator("#finish").is_visible())
+        self.assertEqual(self.page.evaluate("[running, ridePaused]"), [False, True])
+        self.page.locator("#btnMenu").click()
+        self.assertEqual(self.page.locator("#btnMenuPause").text_content(), "Hervatten")
 
     def test_end_paused_ride_clears_resume_message_and_excludes_pause_time(self):
         stops = []
@@ -348,7 +350,7 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.page.route("**/ritten/stop", stop_request)
         self.pause_test_ride()
         self.page.evaluate("window.testWall += 600000")
-        self.page.locator("#btnEndRide").click()
+        self.page.locator("#btnMenuEnd").click()
         self.page.wait_for_function("pendingRide !== null")
         self.assertEqual(self.page.evaluate("[running, ridePaused]"), [False, False])
         self.assertEqual(self.page.locator("#finishTitle").text_content(), "Rit gestopt")
@@ -356,7 +358,7 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.locator("#finishGoRow").is_visible())
         self.assertEqual(self.page.evaluate("Math.floor((Date.now()-t0)/1000)"), 60)
         self.assertIn("1:00", self.page.locator("#fStats").text_content())
-        self.page.evaluate("document.getElementById('btnEndRide').click(); document.getElementById('btnContinue').click()")
+        self.page.evaluate("document.getElementById('btnMenuEnd').click(); document.getElementById('btnMenuPause').click()")
         self.assertEqual(self.page.evaluate("[running, ridePaused]"), [False, False])
         self.assertEqual(stops, ["POST"])
         self.page.locator("#btnFinishSave").click()
@@ -372,7 +374,7 @@ class OnlineKOMBrowserTests(unittest.TestCase):
 
         self.page.route("**/ritten/stop", stop_request)
         self.pause_test_ride()
-        self.page.locator("#btnEndRide").click()
+        self.page.locator("#btnMenuEnd").click()
         self.page.wait_for_timeout(100)
         self.assertEqual(stops, ["POST"])
         self.assertEqual(self.page.locator("#finishTitle").text_content(), "Rit gestopt")
@@ -390,7 +392,7 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.page.route("**/ritten/resume", resume_request)
         self.pause_test_ride()
         self.page.evaluate("window.testWall += 300000")
-        self.page.locator("#btnContinue").click()
+        self.page.locator("#btnMenuPause").click()
         self.page.wait_for_timeout(100)
         self.assertEqual(resumes, ["POST"])
         self.assertEqual(self.page.evaluate("[running, ridePaused]"), [True, False])
@@ -404,6 +406,49 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.locator("#finishGoRow").is_visible())
         self.assertNotIn("hervatten", self.page.locator("#fRecord").text_content())
         self.assertFalse(self.page.evaluate("ridePaused || running"))
+        self.assertFalse(self.page.locator("#btnMenu").is_visible())
+
+    def test_ride_menu_pauses_scene_and_saves_route_feel_without_ending(self):
+        settings, pauses = [], []
+        self.page.route("**/settings", lambda route: settings.append(route.request.post_data_json) or route.fulfill(json={"ok": True}))
+        self.page.route("**/ritten/pause", lambda route: pauses.append(route.request.method) or route.fulfill(json={"ok": True}))
+        self.page.goto(self.base + "/game")
+        self.assertEqual(self.page.locator("#btnStop").count(), 0)
+        self.page.evaluate("""() => {
+            startRide();
+            dist = 120; simT = 30; crank = 1.25; dayPhase = 0.2; spd = 4;
+        }""")
+        self.page.locator("#btnMenu").click()
+        self.page.locator("#menuFeel").fill("35")
+        self.page.locator("#btnMenuClose").click()
+        self.page.wait_for_timeout(400)
+        self.assertEqual(settings[-1]["route_feel"], 35)
+        self.assertEqual(self.page.evaluate("[running, ridePaused, SETTINGS.route_feel]"), [True, False, 35])
+        self.assertFalse(self.page.locator("#rideMenu").is_visible())
+        self.page.locator("#btnMenu").click()
+        self.page.locator("#btnMenuPause").click()
+        self.page.wait_for_function("ridePaused")
+        frozen = self.page.evaluate("[dist, simT, crank, dayPhase]")
+        self.page.wait_for_timeout(350)
+        self.assertEqual(pauses, ["POST"])
+        self.assertEqual(self.page.evaluate("[dist, simT, crank, dayPhase]"), frozen)
+        self.assertFalse(self.page.locator("#finish").is_visible())
+        self.page.locator("#btnMenuClose").click()
+        self.assertEqual(self.page.evaluate("[running, ridePaused]"), [False, True])
+        self.assertFalse(self.page.locator("#rideMenu").is_visible())
+        graph = self.page.evaluate("""() => {
+            const ride = document.getElementById('ride').getBoundingClientRect();
+            const pwr = document.getElementById('pwr').getBoundingClientRect();
+            const menu = document.getElementById('btnMenu').getBoundingClientRect();
+            return {left: (pwr.left - ride.left) / ride.width, width: pwr.width / ride.width,
+                    menuLeft: menu.left - ride.left, menuRight: menu.right, pwrLeft: pwr.left,
+                    menuBottom: ride.bottom - menu.bottom};
+        }""")
+        self.assertAlmostEqual(graph["left"], 0.20, delta=0.02)
+        self.assertAlmostEqual(graph["width"], 0.60, delta=0.02)
+        self.assertLess(graph["menuRight"], graph["pwrLeft"] + 1)
+        self.assertGreaterEqual(self.page.locator("#btnMenu").evaluate("el => parseFloat(getComputedStyle(el).fontSize)"), 18)
+        self.assertLess(graph["menuBottom"], 40)
 
     def test_sim_trainer_grade_diagnostics_without_enabling_simulation(self):
         data = {"connected": True, "ctrl": {"want_sim": True,

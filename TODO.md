@@ -13,8 +13,9 @@ hieronder per onderdeel bijgehouden.
 - Punt 3: tien seconden vertraagd verbergen op beide schermen geimplementeerd en automatisch getest; fysieke ventilatorcontrole staat nog open.
 - Punt 5: alleen de Windows-pc wakker houden tijdens rit en pauze geimplementeerd; praktijkcontrole en eventuele klassieke screensaver blijven open. Telefoon valt buiten scope.
 - Punt 12: verouderde pauze-/hervatmelding na beeindigen hersteld en met vier extra Edge-tests gecontroleerd; praktijkcontrole staat nog open.
-- Verificatie: alle 143 tests slagen, inclusief Edge, 12 telemetrietests, 13 ventilatortests en 11 schermwakkerhoudingstests.
-- Volgende implementatiepunt: punt 11, menuknop voor pauzeren en routegevoel tijdens de rit.
+- Verificatie: alle 144 tests slagen, inclusief Edge, 12 telemetrietests, 13 ventilatortests en 11 schermwakkerhoudingstests.
+- Punt 11: menuknop linksonder toegevoegd; Stop-knop verwijderd. Pauze zet de scène stil zonder eindkaart. Praktijkcontrole staat nog open.
+- Volgende implementatiepunt: punt 2, het kruisje op de mobiele afstandsbediening verbergen.
 
 ## 1. Ontbrekende RPM
 
@@ -419,12 +420,33 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## 11. Menuknop in het spel
 
-- [ ] Een menuknop in het spel toevoegen om tijdens het spelen routegevoel aan te passen en te pauzeren.
+- [x] Een menuknop linksonder toevoegen om tijdens het spelen routegevoel aan te passen, te pauzeren en de rit te beëindigen.
+- [ ] In een echte rit controleren dat pauze de scène stilzet, hervatten verdergaat en beëindigen de samenvatting opent.
+
+### Uitgevoerd
+
+De Stop-knop rechtsboven is verwijderd. Tijdens een rit staat linksonder een
+menuknop, ook in volledig scherm. Het menu sluit met het kruisje rechtsboven;
+sluiten hervat een gepauzeerde rit niet. Het menu bevat routegevoel, pauzeren
+of hervatten, en rit beëindigen.
+
+Routegevoel werkt direct tijdens het rijden en wordt opgeslagen voor een
+volgende rit. Pauzeren toont geen eindkaart. Tijd, afstand, fietser, NPC's,
+animatie en trainingsvoortgang blijven stilstaan; de pauzeduur telt niet mee.
+De traineraansturing en opname worden tijdens pauze onderbroken en bij hervatten
+weer gestart. Beëindigen gebruikt de bestaande eindafhandeling.
+
+De vermogensgrafiek is 60% breed en horizontaal gecentreerd. De menuknop
+linksonder is vergroot en overlapt de grafiek niet. De wattagekaart linksboven
+is niet gewijzigd.
+
+Een lokale pauze zet andere multiplayerspelers niet stil. Na hervatten loopt
+de eigen scène verder vanaf de gepauzeerde positie.
 
 ## 12. Spel hervatten na beeindigen
 
 - [x] De verouderde pauze-/hervatmelding na beeindigen herstellen en automatisch testen.
-- [ ] Tijdens een echte rit Stop -> Beeindigen controleren; hervatten mag daarna niet meer worden aangeboden.
+- [ ] Tijdens een echte rit via het menu beëindigen controleren; hervatten mag daarna niet meer worden aangeboden.
 
 ### Bevindingen en herstel
 
@@ -461,6 +483,6 @@ Bron: `pages/game.html` (`finishRide`, `btnEndRide`),
 1. Resterende praktijkcontroles uitvoeren: RPM bij stoppen en opnieuw verbinden (punt 1), groter versnellingsbereik en ventilatoruitval/herstel (punt 3). Cadans tijdens fietsen is door de gebruiker bevestigd; softwaretests zijn afgerond.
 2. Ventilatorvertraging (punt 3) is geimplementeerd; alleen de fysieke praktijkcontrole staat nog open.
 3. Pc-schermwakkerhouding (punt 5) is geimplementeerd; werking tijdens rit/pauze en vrijgave na beeindigen nog in de praktijk controleren. Telefoon is uitgesloten; een klassieke screensaver blijft zo nodig een afzonderlijk aandachtspunt.
-4. Menuknop tijdens de rit toevoegen (punt 11). De normale ritbeeindiging uit punt 12 is hersteld; nog een korte praktijkcontrole uitvoeren.
+4. Menuknop (punt 11) is toegevoegd. Nog controleren dat pauze de scène stilzet en beëindigen via het menu de samenvatting opent.
 5. Mobiel kruisje, NPC-dichtheid, gebouwen, fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 2, 4, 6, 10 en 8).
 6. De resterende foutafhandeling van trainercommando's uit punt 7 gericht onderzoeken; normale SIM-werking bij 0% is al bevestigd.

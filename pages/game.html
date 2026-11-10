@@ -20,9 +20,16 @@ h1{font-size:20px;margin:0 0 2px;font-weight:700}
 canvas{width:100%;background:#0b0e14;border-radius:10px;display:block}
 #ride{position:relative}
 #game{height:clamp(396px,70vh,800px)}
-#btnFs,#btnStop{position:absolute;top:16px;z-index:8;background:rgba(16,20,28,.82);border:2px solid #f4f6f8;color:#fff;border-radius:10px;padding:4px 10px;font-size:16px;line-height:1;cursor:pointer}
-#btnFs{right:16px}
-#btnStop{right:58px;font-size:14px;padding:6px 10px}
+#btnFs,#btnMenu{position:absolute;z-index:8;background:rgba(16,20,28,.92);border:2px solid #f4f6f8;color:#fff;border-radius:10px;cursor:pointer}
+#btnFs{top:16px;right:16px;padding:4px 10px;font-size:16px;line-height:1}
+#btnMenu{display:none;left:16px;bottom:16px;padding:12px 22px;font-size:18px;font-weight:700;line-height:1}
+#rideMenu{display:none;position:absolute;left:16px;bottom:72px;z-index:9;width:min(280px,calc(100% - 32px));box-sizing:border-box;background:rgba(16,20,28,.96);border:2px solid #f4f6f8;border-radius:12px;padding:16px 16px 14px;color:#fff}
+#btnMenuClose{position:absolute;top:8px;right:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:20px;font-weight:700;line-height:1;padding:0;cursor:pointer}
+#rideMenu h3{margin:0 28px 12px 0;font-size:16px}
+#rideMenu label{display:block;font-size:13px;color:#9aa3b5;margin-bottom:6px}
+#menuFeel{width:100%;margin:0}
+#rideMenu .actions{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+#rideMenu .actions button{width:100%;margin:0}
 #btnSim{display:none;position:absolute;top:16px;right:124px;z-index:8;background:rgba(16,20,28,.82);border:2px solid #f4f6f8;color:#fff;border-radius:10px;font-size:14px;padding:6px 10px;line-height:1;cursor:pointer}
 #btnSim.on{background:#c77700;border-color:#ffd24d}
 #simPanel{display:none;position:absolute;top:60px;right:16px;z-index:9;background:rgba(16,20,28,.94);border:2px solid #f4f6f8;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;align-items:center;gap:6px;flex-wrap:wrap;max-width:calc(100% - 32px);box-sizing:border-box}
@@ -67,8 +74,8 @@ body.hr-on #ride:fullscreen #pwr,body.hr-on #ride:-webkit-full-screen #pwr{botto
 #map,#climb,#pwr,#hrz,#komLive{background:rgba(16,20,28,1);border:3px solid #f4f6f8;border-radius:18px;box-shadow:0 8px 28px rgba(0,0,0,.35);box-sizing:border-box;z-index:3}
 #zCard,#rideStrip,#map,#climb,#pwr,#hrz,#komLive,#segBar,#alert,#komAlert{opacity:.82}
 #map{position:absolute;top:12px;right:12px;width:26%;height:110px}
-#pwr{position:absolute;left:5%;bottom:12px;width:90%;height:112px}
-#hrz{position:absolute;left:5%;bottom:12px;width:90%;height:64px;display:none}
+#pwr{position:absolute;left:50%;bottom:12px;width:60%;height:112px;transform:translateX(-50%)}
+#hrz{position:absolute;left:50%;bottom:12px;width:60%;height:64px;display:none;transform:translateX(-50%)}
 body.hr-on #hrz{display:block}
 body.hr-on #pwr{bottom:86px}
 #rideStrip{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:3;display:none;align-items:center;gap:16px;background:rgba(16,20,28,1);border:3px solid #f4f6f8;border-radius:18px;padding:8px 16px;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.35);white-space:nowrap}
@@ -200,7 +207,14 @@ a{color:#4da3ff;font-size:13px}
 </div>
 <div id="ride"><div id="ergDock"><div class="pct"><button type="button" class="ghost" id="ergPctDown">&minus;</button><span id="ergPct">0%</span><button type="button" class="ghost" id="ergPctUp">+</button></div><div id="ergWrap"><canvas id="ergTL" style="height:116px;background:#161b26;width:100%"></canvas><div id="ergTLin" style="position:absolute;top:4px;left:8px;font-size:12px;color:#e7eaf0;text-shadow:0 0 4px #000;pointer-events:none"></div></div></div><canvas id="game"></canvas>
 <div id="edgeRiders"></div>
-<button type="button" id="btnStop">Stop</button>
+<button type="button" id="btnMenu">Menu</button>
+<div id="rideMenu">
+<button type="button" id="btnMenuClose" title="Menu sluiten" aria-label="Menu sluiten">&#10005;</button>
+<h3 id="menuTitle">Rit</h3>
+<label for="menuFeel">Routegevoel <b id="menuFeelVal">100%</b></label>
+<input id="menuFeel" type="range" min="0" max="100" step="1" value="100">
+<div class="actions"><button type="button" id="btnMenuPause">Pauzeren</button><button type="button" class="ghost" id="btnMenuEnd">Rit beëindigen</button></div>
+</div>
 <button type="button" id="btnSim" title="Simuleer een vast vermogen in plaats van de trainer">Sim</button>
 <div id="simPanel"><button type="button" class="ghost" id="simDown">&minus;</button><input id="simW" type="number" min="0" max="2000" step="10" value="200"><span>W</span><button type="button" class="ghost" id="simUp">+</button><button type="button" class="ghost" id="simCadDown">&minus;</button><input id="simCad" type="number" min="0" max="200" step="5" value="90"><span>rpm</span><button type="button" class="ghost" id="simCadUp">+</button><button type="button" id="simToggle">Aan</button><div id="simTrainerGrade" title="Laatst verstuurde SIM-commando, geen gemeten fysieke helling.">Trainer-SIM: - (nog geen gegevens)</div><div id="trainerDiagControls"><button type="button" id="trainerDiagToggle" title="Start vervangt het vorige diagnoselog; stopt automatisch na 30 minuten of 5 MB.">Start diagnoselog</button><span id="trainerDiagStatus">Tijdelijk log, maximaal 30 minuten / 5 MB</span></div></div>
 <button type="button" id="btnFs" title="Volledig scherm">&#x26F6;</button>
@@ -2645,6 +2659,7 @@ function startRide(){
   ridePaused=false;simPause=0;
   fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:(ergOn&&ergWorkout)?'start_erg':'start'})});
   fetch('/ritten/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:(ergOn&&ergWorkout)?'erg':'game',name:((ergOn&&ergWorkout)?('ERG '+ergWorkout.name):(course.name+' '+course.km+'km'))})});
+  syncRideMenu();
   multiInput();
   updateMultiStatus();
 }
@@ -3255,7 +3270,47 @@ function multiInput(){
   }).catch(()=>{multiOffline=true;}).finally(()=>{multiBusy=false;});
 }
 function multiTick(){multiInput();}
-document.getElementById('btnStop').onclick=()=>{pauseRide();};
+function syncRideMenu(){
+  const active=running||ridePaused;
+  const menu=document.getElementById('rideMenu');
+  document.getElementById('btnMenu').style.display=active?'block':'none';
+  if(!active)menu.style.display='none';
+  document.getElementById('menuTitle').textContent=ridePaused?'Rit gepauzeerd':'Rit';
+  document.getElementById('btnMenuPause').textContent=ridePaused?'Hervatten':'Pauzeren';
+}
+function openRideMenu(){
+  const feel=Math.max(0,Math.min(100,Math.round(Number(SETTINGS.route_feel==null?100:SETTINGS.route_feel))));
+  document.getElementById('menuFeel').value=feel;
+  document.getElementById('menuFeelVal').textContent=feel+'%';
+  document.getElementById('rideMenu').style.display='block';
+  syncRideMenu();
+}
+function closeRideMenu(){document.getElementById('rideMenu').style.display='none';}
+let feelSaveT=null;
+function setRouteFeel(value){
+  const feel=Math.max(0,Math.min(100,Math.round(Number(value))));
+  SETTINGS.route_feel=feel;
+  document.getElementById('menuFeelVal').textContent=feel+'%';
+  if(running){lastPostG=999;lastPostT=0;}
+  clearTimeout(feelSaveT);
+  feelSaveT=setTimeout(()=>{
+    fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({route_feel:feel})}).catch(()=>{});
+  },250);
+}
+document.getElementById('btnMenu').onclick=()=>{
+  const menu=document.getElementById('rideMenu');
+  if(menu.style.display==='block')closeRideMenu();
+  else openRideMenu();
+};
+document.getElementById('btnMenuClose').onclick=closeRideMenu;
+document.getElementById('menuFeel').oninput=e=>setRouteFeel(e.target.value);
+document.getElementById('btnMenuPause').onclick=()=>{if(ridePaused)continueRide();else pauseRide();};
+document.getElementById('btnMenuEnd').onclick=()=>{
+  if(!(running||ridePaused))return;
+  closeRideMenu();
+  finishRide(false);
+};
 // Sim: vast vermogen in plaats van de trainer (alleen voor de game; de opname houdt het gemeten vermogen).
 let simOn=false;
 let trainerDiagActive=false,trainerDiagBusy=false;
@@ -3323,6 +3378,7 @@ simCadIn.oninput=simApply;
 document.addEventListener('keydown',e=>{
   if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName))return;
   if(e.key==='Escape'){
+    if(document.getElementById('rideMenu').style.display==='block'){closeRideMenu();return;}
     if(getComputedStyle(document.getElementById('overlay')).display!=='none')location.href='/';
     return;
   }
@@ -3362,18 +3418,22 @@ function crossFinish(){
   el.textContent='\ud83c\udfc1 Finish! '+fmtClock(finishT);el.style.background='#ffd24d';el.style.display='block';
   clearTimeout(segAlertTo);segAlertTo=setTimeout(()=>{el.style.display='none';},5000);
 }
+let pauseDrawNow=0;
 function pauseRide(){
   if(!running)return;
   // A paused segment is not comparable with an uninterrupted online attempt.
   if(curSeg>=0)segOnlinePaused=true;
   ridePaused=true;
   pauseWall=Date.now();
+  pauseDrawNow=performance.now();
   fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'stop'})});
   fetch('/grade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grade:0})});
   fetch('/ritten/pause',{method:'POST'}).catch(()=>{});
-  finishRide(true);
+  running=false;
+  syncRideMenu();
 }
 function continueRide(){
+  if(!ridePaused)return;
   if(simOn)rideSimUsed=true;
   const gap=Math.max(0,Date.now()-pauseWall);
   if(t0)t0+=gap;
@@ -3382,11 +3442,13 @@ function continueRide(){
   ridePaused=false;
   running=true;
   lastPostG=999;
+  lastFrameTime=performance.now();
   document.getElementById('finish').style.display='none';
   document.getElementById('finishGoRow').style.display='none';
   document.getElementById('rideStrip').style.display='flex';
   fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:(ergOn&&ergWorkout)?'start_erg':'start'})});
   fetch('/ritten/resume',{method:'POST'}).catch(()=>{});
+  syncRideMenu();
   multiInput();
 }
 function finishRide(pausing){
@@ -3398,6 +3460,8 @@ function finishRide(pausing){
     fetch('/grade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grade:0})});
     stopRide(true);
   }
+  closeRideMenu();
+  syncRideMenu();
   multiInput();
   const completed=finishT!=null;
   const s=completed?finishT:(t0?Math.floor((Date.now()-t0)/1000):0);
@@ -3586,8 +3650,11 @@ let lastDrawTime = 0;
 let prevDist = 0;
 
 function frame(){
-  const now = performance.now();
+  const wall = performance.now();
   try {
+  if(ridePaused) lastFrameTime = wall;
+  else {
+  const now = wall;
   const frameDt = Math.min(0.25, Math.max(0, (now - lastFrameTime) / 1000));
   lastFrameTime = now;
   const localT = now / 1000;
@@ -3608,9 +3675,11 @@ function frame(){
     simT+=FIXED_DT;
     steps++;
   }
+  }
+  const now = ridePaused ? pauseDrawNow : wall;
 
-  if(now-lastDrawTime<DRAW_DT) return;
-  lastDrawTime=now;
+  if(wall-lastDrawTime<DRAW_DT) return;
+  lastDrawTime=wall;
   ctx=fit(cv);
   viewZ=sceneZoom();
   if(viewZ!==1){
@@ -3695,9 +3764,9 @@ function frame(){
       const gap=Math.round(multiDrawDist-dist);bits.push((gap>=0?'+':'')+gap+' m');}
     document.getElementById('rExtra').textContent=bits.join('  ·  ');
   }
-  samplePower(now);
+  samplePower(wall);
   drawPower(now);
-  if(now-lastSlow>250){mx=fit(mp);drawMap();drawClimb();drawHr(now);updateAlert();renderKomLive(el);drawErgTL();readFtp();lastSlow=now;}
+  if(wall-lastSlow>250){mx=fit(mp);drawMap();drawClimb();drawHr(now);updateAlert();renderKomLive(el);drawErgTL();readFtp();lastSlow=wall;}
   } finally {
     requestAnimationFrame(frame);
   }
