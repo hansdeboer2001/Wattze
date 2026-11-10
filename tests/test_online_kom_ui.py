@@ -591,6 +591,27 @@ class OnlineKOMBrowserTests(unittest.TestCase):
                 self.page.evaluate("fan => es.onmessage({data:JSON.stringify({power:0,cadence:0,fan})})", current)
                 self.assertFalse(self.page.locator(selector).is_visible())
 
+    def test_remote_close_link_is_hidden_only_on_coarse_touch(self):
+        self.page.goto(self.base + "/remote")
+        self.page.set_viewport_size({"width": 700, "height": 500})
+        self.assertTrue(self.page.locator("#btnHome").is_visible())
+        self.assertTrue(self.page.locator("#down").is_visible())
+        browser = self.pw.chromium.launch(executable_path=str(EDGE), headless=True,
+                                           args=["--no-first-run", "--disable-background-networking"])
+        self.addCleanup(browser.close)
+        for width, height in ((390, 844), (844, 390)):
+            with self.subTest(width=width, height=height):
+                context = browser.new_context(viewport={"width": width, "height": height},
+                                               is_mobile=True, has_touch=True, device_scale_factor=2)
+                page = context.new_page()
+                page.goto(self.base + "/remote")
+                self.assertTrue(page.evaluate("matchMedia('(hover: none) and (pointer: coarse)').matches"))
+                self.assertFalse(page.locator("#btnHome").is_visible())
+                self.assertTrue(page.locator("#down").is_visible())
+                self.assertTrue(page.locator("#up").is_visible())
+                self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width)
+                context.close()
+
     def test_desktop_and_mobile_layout(self):
         self.register()
         for width, height in ((1440, 1000), (390, 844)):

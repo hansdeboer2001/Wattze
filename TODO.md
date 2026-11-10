@@ -13,9 +13,9 @@ hieronder per onderdeel bijgehouden.
 - Punt 3: tien seconden vertraagd verbergen op beide schermen geimplementeerd en automatisch getest; fysieke ventilatorcontrole staat nog open.
 - Punt 5: alleen de Windows-pc wakker houden tijdens rit en pauze geimplementeerd; praktijkcontrole en eventuele klassieke screensaver blijven open. Telefoon valt buiten scope.
 - Punt 12: verouderde pauze-/hervatmelding na beeindigen hersteld en met vier extra Edge-tests gecontroleerd; praktijkcontrole staat nog open.
-- Verificatie: alle 144 tests slagen, inclusief Edge, 12 telemetrietests, 13 ventilatortests en 11 schermwakkerhoudingstests.
+- Verificatie: alle 145 tests slagen, inclusief Edge.
 - Punt 11: menuknop linksonder toegevoegd; Stop-knop verwijderd. Pauze zet de scène stil zonder eindkaart. Praktijkcontrole staat nog open.
-- Volgende implementatiepunt: punt 2, het kruisje op de mobiele afstandsbediening verbergen.
+- Punt 2: kruisje op de telefoonafstandsbediening verborgen bij aanraakbediening, ook liggend. Een smal desktopvenster behoudt de link.
 
 ## 1. Ontbrekende RPM
 
@@ -71,21 +71,24 @@ Bron: `wattze/telemetry.py`, `wattze/ble_wattze.py`, `wattze/http_handler.py`,
 
 ## 2. Sluitknop op mobiel
 
-- [ ] Het kruisje in het afstandsbedieningsscherm op mobiel verbergen.
+- [x] Het kruisje in het afstandsbedieningsscherm op mobiel verbergen.
+- [ ] Op een echte telefoon, staand en liggend, controleren dat het kruisje weg is en de schakelknoppen bruikbaar blijven.
 
 ### Bevindingen
 
-Het kruisje staat nu altijd rechtsboven. Het is een link terug naar het
-dashboard, geen browser-sluitknop.
+Het kruisje staat rechtsboven. Het is een link terug naar het dashboard, geen
+browser-sluitknop.
 
-### Vervolg
+### Uitgevoerd
 
-Alleen deze link op mobiel verbergen, zonder de overige bediening te wijzigen.
-Ook controleren in liggende telefoonstand. Een schermbreedtegrens kan ook een
-smal desktopvenster raken; een touchcriterium kan tablets en hybride laptops
-meenemen.
+Alleen deze link wordt verborgen bij `(hover: none) and (pointer: coarse)`.
+Dat geldt voor telefoons in staande en liggende stand, onafhankelijk van de
+schermbreedte. De schakelknoppen en ventilatorbediening blijven zichtbaar.
+Een smal desktopvenster met muis behoudt de link. Tablets en sommige hybride
+laptops vallen ook onder dit aanraakcriterium; dat is bewust, omdat daar dezelfde
+afstandsbediening wordt gebruikt.
 
-Bron: `pages/remote.html:36-39`.
+Bron: `pages/remote.html`, `tests/test_online_kom_ui.py`.
 
 ## 3. Ventilator na verbindingsverlies
 
@@ -484,5 +487,5 @@ Bron: `pages/game.html` (`finishRide`, `btnEndRide`),
 2. Ventilatorvertraging (punt 3) is geimplementeerd; alleen de fysieke praktijkcontrole staat nog open.
 3. Pc-schermwakkerhouding (punt 5) is geimplementeerd; werking tijdens rit/pauze en vrijgave na beeindigen nog in de praktijk controleren. Telefoon is uitgesloten; een klassieke screensaver blijft zo nodig een afzonderlijk aandachtspunt.
 4. Menuknop (punt 11) is toegevoegd. Nog controleren dat pauze de scène stilzet en beëindigen via het menu de samenvatting opent.
-5. Mobiel kruisje, NPC-dichtheid, gebouwen, fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 2, 4, 6, 10 en 8).
+5. NPC-dichtheid, gebouwen, fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 4, 6, 10 en 8). Het mobiele kruisje (punt 2) nog op een echte telefoon controleren.
 6. De resterende foutafhandeling van trainercommando's uit punt 7 gericht onderzoeken; normale SIM-werking bij 0% is al bevestigd.
