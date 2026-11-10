@@ -1,8 +1,13 @@
 # Todolijst
 
-Deze lijst is uitgewerkt op basis van broncodeonderzoek. De bevindingen zijn
-niet met een draaiende applicatie of trainer gecontroleerd. Er zijn voor dit
-onderzoek geen codewijzigingen, builds of tests uitgevoerd.
+Deze lijst is oorspronkelijk uitgewerkt op basis van broncodeonderzoek, zonder
+draaiende applicatie of trainer. Uitgevoerde wijzigingen en controles worden
+hieronder per onderdeel bijgehouden.
+
+## Actuele status
+
+- Punt 9: verstuurde trainerhelling en bevestigingsstatus toegevoegd.
+- Verificatie: alle 74 tests slagen, inclusief de beschikbare Edge-browsertests.
 
 ## 1. Ontbrekende RPM
 
@@ -210,7 +215,8 @@ Bron: `pages/game.html:3344-3457`, `pages/blokjes.html:482-544`.
 
 ## 9. Verstuurde trainerhelling tonen
 
-- [ ] In de ontwikkelweergave het daadwerkelijk naar de trainer verstuurde hellingspercentage tonen, zonder de aansturing te veranderen.
+- [x] In de ontwikkelweergave het daadwerkelijk naar de trainer verstuurde hellingspercentage tonen, zonder de aansturing te veranderen.
+- [x] De verstuurde waarden en trainerbevestigingen tijdens echte proefritten controleren.
 
 ### Bevindingen
 
@@ -228,10 +234,33 @@ bevestigingsstatus van de trainer. Bij ERG of ontbrekende gegevens geen
 misleidende `0%` tonen. De zichtbare waarde moet het verstuurde of bevestigde
 SIM-commando beschrijven, niet een gemeten fysieke helling of weerstand.
 
-### Open vraag
+### Uitgevoerd
 
-Er is een simulatie-/testweergave via `?sim=1`, maar geen afzonderlijke algemene
-developermodus gevonden. Bepalen waar deze extra waarde zichtbaar moet worden.
+De uitlezing staat in het Sim-paneel van `/game?sim=1`. Simulatie inschakelen is
+niet nodig. De bestaande API-polling werkt de waarde elke twee seconden bij.
+De waarde wordt na een geslaagde BLE-write uit het gecodeerde pakket gelezen,
+inclusief begrenzing en afronding. De status onderscheidt wachten op bevestiging,
+bevestigd, afgewezen, timeout, ongeldige/niet-passende respons en schrijffout.
+Alleen een succesvolle respons voor SIM-opcode `0x11` geldt hier als bevestigd.
+
+Bij ERG, een verbroken verbinding of ontbrekende gegevens wordt geen fictieve
+`0%` getoond. De diagnostiek wordt bij een nieuwe SIM-sessie, moduswisseling en
+verbindingsverlies gewist. Bestaande regelwaarden, commando's en verzendvoorwaarden
+zijn niet aangepast. Het betreft het laatst verstuurde commando, geen gemeten
+fysieke helling of weerstand.
+
+### Controle
+
+Elf geautomatiseerde backendtests dekken pakketbegrenzing, afronding, echte nul,
+bevestiging, foutgevallen en resets bij ERG/disconnect/reconnect. De browsertest
+controleert het paneel zonder ingeschakelde simulatie, statussen en desktop- en
+mobiele breedte in Edge. De geautomatiseerde tests slagen. De daadwerkelijke
+commando's en passende trainerbevestigingen zijn daarnaast met echte proefritten
+gecontroleerd. De praktijkuitkomst wordt bij punt 7 vastgelegd.
+
+Bij de tests is ook bestaand gedrag bevestigd: de aansturing zelf controleert
+bij een succesvolle FTMS-respons nog niet de bijbehorende opcode. Dit is niet
+gewijzigd; de nieuwe diagnostiek noemt zo'n niet-passende respons niet bevestigd.
 
 Bron: `wattze/ble_wattze.py:155-158`, `wattze/ble_wattze.py:294-306`,
 `pages/game.html:3250-3274`.
@@ -269,7 +298,6 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## Aanbevolen volgorde
 
-1. De werkelijke trainerhelling zichtbaar maken en de RPM-ontvangst controleren.
-2. Met die informatie het schakelprobleem bij 0% routegevoel diagnosticeren.
-3. De ventilatorvertraging en schermwakkerhouding aanpakken.
-4. De visuele aanpassingen en screenshotsamenvatting uitvoeren.
+1. RPM-ontvangst controleren (punt 1) en de schakelwerking diagnosticeren (punt 7).
+2. De menuknop en overige openstaande visuele punten uitvoeren.
+3. De per onderdeel genoemde praktijkcontroles en foutpaden afronden.

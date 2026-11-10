@@ -144,11 +144,37 @@ async def cp_request(client, payload, timeout=5):
     global cp_result
     cp_result = None
     cp_evt.clear()
-    await client.write_gatt_char(CP_UUID, bytearray(payload), response=True)
+    # Observe the encoded SIM command without changing control decisions or retries.
+    is_sim = len(payload) == 7 and payload[0] == 0x11
+    if is_sim:
+        with lock:
+            ctrl["sim_command"] = {"grade": None, "t": None, "status": "writing"}
+    try:
+        await client.write_gatt_char(CP_UUID, bytearray(payload), response=True)
+    except Exception:
+        if is_sim:
+            with lock:
+                ctrl["sim_command"] = {"grade": None, "t": None, "status": "write_error"}
+        raise
+    if is_sim:
+        command = {"grade": struct.unpack_from("<h", bytes(payload), 3)[0] / 100.0,
+                   "t": time.time(), "status": "pending"}
+        with lock:
+            ctrl["sim_command"] = command
     try:
         await asyncio.wait_for(cp_evt.wait(), timeout)
     except asyncio.TimeoutError:
+        if is_sim:
+            with lock:
+                ctrl["sim_command"] = dict(command, status="timeout")
         return None
+    if is_sim:
+        status = "unconfirmed"
+        if cp_result and cp_result[0] == 0x11:
+            status = "confirmed" if cp_result[1] == 0x01 else "rejected"
+        with lock:
+            ctrl["sim_command"] = dict(command, status=status,
+                                       result=cp_result[1] if cp_result and cp_result[0] == 0x11 else None)
     return cp_result
 
 
@@ -225,6 +251,7 @@ async def ble_loop():
                     ctrl["erg_active"] = False
                     ctrl["last_sent"] = None
                     ctrl["last_erg"] = None
+                    ctrl["sim_command"] = None
 
                 async def ensure_control():
                     nonlocal ctrl_held
@@ -264,6 +291,7 @@ async def ble_loop():
                                     with lock:
                                         ctrl["sim_active"] = False
                                         ctrl["last_sent"] = None
+                                        ctrl["sim_command"] = None
                                 if not erg_on and await ensure_control():
                                     erg_on = True
                                     with lock:
@@ -281,6 +309,7 @@ async def ble_loop():
                                     with lock:
                                         ctrl["sim_active"] = True
                                         ctrl["last_sent"] = None
+                                        ctrl["sim_command"] = None
                             else:
                                 if sim_on or erg_on:
                                     await stop_workout()
@@ -291,6 +320,7 @@ async def ble_loop():
                                         ctrl["erg_active"] = False
                                         ctrl["last_sent"] = None
                                         ctrl["last_erg"] = None
+                                        ctrl["sim_command"] = None
                             if sim_on:
                                 with lock:
                                     ls = ctrl["last_sent"]
@@ -348,6 +378,8 @@ async def ble_loop():
                                             dbg(f"erg-ftms-ERR {type(e).__name__}: {e}")
                         await asyncio.sleep(0.2)
                 finally:
+                    with lock:
+                        ctrl["sim_command"] = None
                     try:
                         if use_ftms:
                             await client.stop_notify(BIKE_DATA)
@@ -368,7 +400,7 @@ async def ble_loop():
             state.update(power=0, cadence=0, speed=0, kickr_addr="", kickr_name="")
             ctrl["sim_active"] = False
             ctrl["last_sent"] = None
+            ctrl["sim_command"] = None
             rebind["kickr"] = False
         push(snapshot())
         await asyncio.sleep(3)
-

@@ -25,7 +25,8 @@ canvas{width:100%;background:#0b0e14;border-radius:10px;display:block}
 #btnStop{right:58px;font-size:14px;padding:6px 10px}
 #btnSim{display:none;position:absolute;top:16px;right:124px;z-index:8;background:rgba(16,20,28,.82);border:2px solid #f4f6f8;color:#fff;border-radius:10px;font-size:14px;padding:6px 10px;line-height:1;cursor:pointer}
 #btnSim.on{background:#c77700;border-color:#ffd24d}
-#simPanel{display:none;position:absolute;top:60px;right:16px;z-index:9;background:rgba(16,20,28,.94);border:2px solid #f4f6f8;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;align-items:center;gap:6px}
+#simPanel{display:none;position:absolute;top:60px;right:16px;z-index:9;background:rgba(16,20,28,.94);border:2px solid #f4f6f8;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;align-items:center;gap:6px;flex-wrap:wrap;max-width:calc(100% - 32px);box-sizing:border-box}
+#simTrainerGrade{flex-basis:100%;font-size:13px;line-height:1.5}
 #simPanel input{width:70px;font-size:16px;padding:4px 6px;background:#0b0e14;color:#fff;border:1px solid #555;border-radius:6px;text-align:right}
 #simPanel button{margin:0;padding:6px 10px;font-size:14px}
 #edgeRiders{position:absolute;inset:0;z-index:7;pointer-events:none}
@@ -200,7 +201,7 @@ a{color:#4da3ff;font-size:13px}
 <div id="edgeRiders"></div>
 <button type="button" id="btnStop">Stop</button>
 <button type="button" id="btnSim" title="Simuleer een vast vermogen in plaats van de trainer">Sim</button>
-<div id="simPanel"><button type="button" class="ghost" id="simDown">&minus;</button><input id="simW" type="number" min="0" max="2000" step="10" value="200"><span>W</span><button type="button" class="ghost" id="simUp">+</button><button type="button" class="ghost" id="simCadDown">&minus;</button><input id="simCad" type="number" min="0" max="200" step="5" value="90"><span>rpm</span><button type="button" class="ghost" id="simCadUp">+</button><button type="button" id="simToggle">Aan</button></div>
+<div id="simPanel"><button type="button" class="ghost" id="simDown">&minus;</button><input id="simW" type="number" min="0" max="2000" step="10" value="200"><span>W</span><button type="button" class="ghost" id="simUp">+</button><button type="button" class="ghost" id="simCadDown">&minus;</button><input id="simCad" type="number" min="0" max="200" step="5" value="90"><span>rpm</span><button type="button" class="ghost" id="simCadUp">+</button><button type="button" id="simToggle">Aan</button><div id="simTrainerGrade" title="Laatst verstuurde SIM-commando, geen gemeten fysieke helling.">Trainer-SIM: - (nog geen gegevens)</div></div>
 <button type="button" id="btnFs" title="Volledig scherm">&#x26F6;</button>
 <div id="rideStrip"><span class="rs"><span class="ic">&#9201;</span><b id="rTime">0:00</b><span class="l">TIJD</span></span><span class="rs"><span class="ic">&#9873;</span><b id="rDist">0.00</b><span class="l">KM</span></span><span class="rs"><span class="ic">&#9650;</span><b id="rClimb">0</b><span class="l">HM</span></span><span id="rExtra" style="font-size:13px;font-weight:600;color:#ffd24d"></span></div>
 <div id="segBar"><span id="segBarName">KOM</span><div id="segBarTrack"><div id="segBarFill"></div></div><span id="segBarTime">0:00</span></div>
@@ -390,6 +391,7 @@ window.addEventListener('pagehide',()=>{
 });
 setInterval(async()=>{
   try{const d=await(await fetch('/api')).json();
+    updateSimTrainerGrade(d);
     if(!simOn){power=d.power;cadence=d.cadence;hr=d.hr||0;}
     CLICK=d.click||CLICK;clickLabel();
     const zf=document.getElementById('zFanN');
@@ -399,7 +401,7 @@ setInterval(async()=>{
       zf.dataset.connected=f.connected?'1':'';
       zf.textContent=!f.on?'-':(!f.connected?'-':(f.coasting?'0+':(f.level?String(f.level):'uit')));
     }
-  }catch(e){}
+  }catch(e){updateSimTrainerGrade(null);}
 },2000);
 let powerHiddenAt=0;
 async function syncTelemetry(hiddenAt=0){
@@ -3249,6 +3251,23 @@ function multiTick(){multiInput();}
 document.getElementById('btnStop').onclick=()=>{pauseRide();};
 // Sim: vast vermogen in plaats van de trainer (alleen voor de game; de opname houdt het gemeten vermogen).
 let simOn=false;
+function updateSimTrainerGrade(data){
+  const c=data&&data.ctrl||{}, cmd=c.sim_command;
+  let text='- (nog geen gegevens)';
+  if(!data)text='- (server niet bereikbaar)';
+  else if(!data.connected)text='- (trainer niet verbonden)';
+  else if(c.want_erg||c.erg_active)text='ERG (geen SIM-helling)';
+  else if(!c.want_sim)text='- (SIM niet actief)';
+  else if(cmd){
+    const labels={writing:'wordt verstuurd',pending:'wacht op bevestiging',confirmed:'bevestigd',
+      rejected:'afgewezen, code '+cmd.result,timeout:'timeout, niet bevestigd',
+      unconfirmed:'niet bevestigd',write_error:'schrijffout, verzending niet vastgesteld'};
+    const grade=typeof cmd.grade==='number'&&Number.isFinite(cmd.grade)
+      ?(cmd.grade>0?'+':'')+cmd.grade.toFixed(2).replace('.',',')+'%':'-';
+    text=grade+' ('+(labels[cmd.status]||'niet bevestigd')+')';
+  }
+  document.getElementById('simTrainerGrade').textContent='Trainer-SIM: '+text;
+}
 const simIn=document.getElementById('simW');
 function simW(){const v=parseInt(simIn.value,10);return isFinite(v)?Math.max(0,Math.min(2000,v)):0;}
 const simCadIn=document.getElementById('simCad');

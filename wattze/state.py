@@ -39,7 +39,8 @@ lock = threading.RLock()
 ctrl = {"want_sim": False, "sim_active": False, "target_grade": 0.0,
         "last_sent": None, "last_sent_t": 0.0, "last_cp": None, "dbg": "-",
         "want_erg": False, "erg_active": False, "target_power": 0,
-        "last_erg": None, "last_erg_t": 0.0, "last_wahoo": None}
+        "last_erg": None, "last_erg_t": 0.0, "last_wahoo": None,
+        "sim_command": None}
 
 # ---- ritten recorder (1 Hz) + TCX-export ----
 RIDE_DIR = os.path.join(APP_DIR, "WattzeRitten")

@@ -325,6 +325,44 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.page.evaluate("simOn=false; rideSimUsed=false; document.getElementById('simToggle').click()")
         self.assertTrue(self.page.evaluate("rideSimUsed"))
 
+    def test_sim_trainer_grade_diagnostics_without_enabling_simulation(self):
+        data = {"connected": True, "ctrl": {"want_sim": True,
+                "sim_command": {"grade": 16, "status": "confirmed", "result": 1}}}
+        self.page.route("**/api", lambda route: route.fulfill(json=data))
+        self.page.goto(self.base + "/game")
+        self.assertFalse(self.page.locator("#btnSim").is_visible())
+        self.page.goto(self.base + "/game?sim=1")
+        self.page.evaluate("document.getElementById('overlay').style.display='none'")
+        self.page.locator("#btnSim").click()
+        self.page.wait_for_function("document.getElementById('simTrainerGrade').textContent.includes('+16,00% (bevestigd)')")
+        self.assertFalse(self.page.evaluate("simOn"))
+        for status, label in (("pending", "wacht op bevestiging"), ("timeout", "timeout, niet bevestigd"),
+                              ("unconfirmed", "niet bevestigd"), ("rejected", "afgewezen, code 5"),
+                              ("write_error", "schrijffout, verzending niet vastgesteld"),
+                              ("writing", "wordt verstuurd")):
+            with self.subTest(status=status):
+                grade = None if status in ("writing", "write_error") else 0
+                cmd = {"grade": grade, "status": status, "result": 5}
+                payload = {"connected": True, "ctrl": {"want_sim": True, "sim_command": cmd}}
+                self.page.evaluate("data => updateSimTrainerGrade(data)", payload)
+                value = "-" if grade is None else "0,00%"
+                self.assertEqual(self.page.locator("#simTrainerGrade").text_content(),
+                                 "Trainer-SIM: %s (%s)" % (value, label))
+        for payload, expected in ((None, "server niet bereikbaar"), ({}, "trainer niet verbonden"),
+                                  ({"connected": True, "ctrl": {"want_erg": True}}, "ERG (geen SIM-helling)"),
+                                  ({"connected": True, "ctrl": {}}, "SIM niet actief"),
+                                  ({"connected": True, "ctrl": {"want_sim": True}}, "nog geen gegevens")):
+            self.page.evaluate("data => updateSimTrainerGrade(data)", payload)
+            self.assertIn(expected, self.page.locator("#simTrainerGrade").text_content())
+        for width, height in ((1440, 1000), (390, 844)):
+            self.page.set_viewport_size({"width": width, "height": height})
+            bounds = self.page.locator("#simPanel").bounding_box()
+            self.assertGreaterEqual(bounds["x"], 0)
+            self.assertLessEqual(bounds["x"] + bounds["width"], width)
+            self.assertLessEqual(self.page.locator("#simPanel").evaluate("el => el.scrollWidth"),
+                                 bounds["width"])
+        self.assertFalse(self.page.evaluate("simOn"))
+
     def test_desktop_and_mobile_layout(self):
         self.register()
         for width, height in ((1440, 1000), (390, 844)):
