@@ -10,7 +10,8 @@ hieronder per onderdeel bijgehouden.
 - Punt 7: tijdelijke diagnoselog toegevoegd; normale SIM-werking bij 0% routegevoel in de praktijk bevestigd.
 - Groter versnellingsbereik (-8% tot +8%): geimplementeerd; rijgevoel nog controleren.
 - Punt 1: cadansontvangst hersteld; gebruiker meldt werkende cadans. Stoppen en opnieuw verbinden nog controleren.
-- Verificatie: alle 114 tests slagen, inclusief de beschikbare Edge-browsertests.
+- Punt 3: vertraagd verbergen van de ventilatorweergave toegevoegd; fysieke praktijkcontrole staat nog open.
+- Verificatie: alle 128 tests slagen, inclusief de beschikbare Edge-browsertests.
 
 ## 1. Ontbrekende RPM
 
@@ -50,7 +51,7 @@ lange onderbreking wordt opnieuw een basis opgebouwd.
 ### Controle en beperking
 
 Twaalf nieuwe telemetrietests controleren optionele velden, afgebroken pakketten,
-ontbrekend versus nul, vervaltijd, crankberekening, wraps en resets. Alle 114
+ontbrekend versus nul, vervaltijd, crankberekening, wraps en resets. Alle 128
 tests slagen. De eerdere proefritten bevatten al cadans, maar zijn van voor
 deze ontvangstwijziging. Na de wijziging heeft de gebruiker gemeld dat cadans
 lijkt te werken. Dat bevestigt gebruik tijdens fietsen, maar is geen expliciete
@@ -84,9 +85,10 @@ Bron: `pages/remote.html:36-39`.
 
 ## 3. Ventilator na verbindingsverlies
 
-- [ ] De ventilatorweergave pas na 10 seconden aaneengesloten verbindingsverlies verbergen.
+- [x] De ventilatorweergave pas na 10 seconden aaneengesloten verbindingsverlies verbergen.
+- [ ] Met de fysieke ventilator korte en lange uitval en herstel op beide schermen controleren.
 
-### Bevindingen
+### Oorspronkelijke bevindingen
 
 De huidige schermen verschillen:
 
@@ -94,13 +96,35 @@ De huidige schermen verschillen:
 - In het ritscherm blijft het vak staan, maar wordt de waarde `-`.
 - Er wordt nog geen tijdstip van verbindingsverlies bijgehouden.
 
-### Vervolg
+### Uitgevoerd
 
-Dezelfde wachttijd op beide schermen toepassen. De 10 seconden gaan in vanaf
-gedetecteerd verbindingsverlies. Bij herstel binnen die tijd blijft de weergave
-staan en vervalt de timer. Nieuwe mislukte verbindingspogingen mogen de timer
-niet telkens opnieuw starten. Na langer verbindingsverlies de weergave verbergen;
-bij herstel direct weer tonen.
+De backend bewaart vanaf de eerste gedetecteerde fout een monotone tijd voor
+het verbindingsverlies. Nieuwe fouten verschuiven dit tijdstip niet. Zowel
+`/api` als de SSE-snapshots geven dezelfde berekende `fan.visible` door.
+Het ritscherm en de telefoonbediening verbergen het ventilatorvak daardoor
+pas bij minstens 10 seconden aaneengesloten verbindingsverlies. De schermen
+verwerken dit bij de eerstvolgende statusupdate, niet noodzakelijk exact op
+de tiende seconde. Herstel wist de timer en toont het vak bij de volgende
+update weer, ook als het eerder al verborgen was.
+
+Tijdens de wachttijd toont het ritscherm `-`; de telefoonbediening meldt
+dat de verbinding wordt hersteld en markeert geen stand als actief. Een
+uitgeschakelde of niet geconfigureerde ventilator blijft direct verborgen.
+Een adreswijziging of uitschakeling wist de oude verlies-timer.
+
+Bij een verbindingsfout wordt ook de verzendcache ongeldig gemaakt. De
+regelaar biedt de gewenste stand daardoor opnieuw aan, zelfs als deze niet
+gewijzigd is. Dit voorkomt dat alleen een herstelde ping voldoende lijkt
+terwijl de ESP de fysieke ventilator intussen heeft uitgezet.
+
+### Controle
+
+Dertien backendtests controleren onder meer 9,999 versus 10 seconden, herhaalde
+fouten, herstel, cachegedrag, opnieuw versturen, uitschakelen en uitdraaien.
+Een Edge-browsertest controleert de zichtbaarheid en herstelstatus op zowel
+het ritscherm als de telefoonbediening. Alle 128 tests slagen. De ESP-firmware
+en de veiligheidsuitschakeling zijn niet gewijzigd. Een echte netwerkonderbreking
+met de fysieke ventilator is nog niet getest.
 
 ### Aandachtspunten
 
@@ -110,8 +134,9 @@ het scherm. Ook controleren of de gewenste ventilatorstand na herstel opnieuw
 wordt verstuurd: een herstelde verbinding betekent niet automatisch dat de
 fysieke ventilator weer op de gewenste stand draait.
 
-Bron: `wattze/fan.py:35-73`, `pages/remote.html:72-86`,
-`pages/game.html:391-403`, `esphome/esp32-relays.yaml:133-143`.
+Bron: `wattze/fan.py`, `wattze/telemetry.py`, `wattze/http_handler.py`,
+`pages/remote.html`, `pages/game.html`, `tests/test_fan.py`,
+`tests/test_online_kom_ui.py`, `esphome/esp32-relays.yaml:133-143`.
 
 ## 4. Meer NPC's
 
@@ -229,7 +254,7 @@ Bestand: `WattzeRitten/trainer_diagnostics.jsonl`. Standaard uit; maximaal
 30 minuten of 5 MB. Een nieuwe start vervangt het vorige log.
 Zie `docs/trainer_diagnostics.md` voor de werkwijze.
 Schrijven gebeurt in een achtergrondthread met begrensde wachtrij; een volle
-wachtrij of schrijffout stopt alleen het log. Alle 114 geautomatiseerde tests
+wachtrij of schrijffout stopt alleen het log. Alle 128 geautomatiseerde tests
 slagen, inclusief start/stop in Edge en blokkering/foutgevallen bij het schrijven.
 
 ### Praktijkuitkomst
@@ -378,6 +403,6 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## Aanbevolen volgorde
 
-1. De ventilatorvertraging uitvoeren (punt 3).
+1. Pc-schermwakkerhouding uitvoeren (punt 5).
 2. De menuknop en overige openstaande visuele punten uitvoeren.
 3. De per onderdeel genoemde praktijkcontroles en foutpaden afronden.

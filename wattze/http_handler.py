@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 
 from wattze.ble_wattze import scan_devices, scan_devices_cached
 from wattze import strava, online_kom, trainer_diagnostics
-from wattze.fan import fan_cmd
+from wattze.fan import fan_cmd, fan_failed, fan_visible
 from wattze.pages import *
 from wattze.rides import *
 from wattze.state import *
@@ -312,6 +312,7 @@ class Handler(BaseHTTPRequestHandler):
                            "age": round(now2 - state.get("hr_t", 0), 1)}}
                 snap["sel"] = dict(sel)
                 snap["fan"] = {k: fan[k] for k in ("on", "host", "level", "connected", "err", "w", "force_level", "force_until", "mode", "coast", "coasting")}
+                snap["fan"]["visible"] = fan_visible()
             self._json(snap)
         elif self.path == "/events":
             self.send_response(200)
@@ -539,9 +540,15 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "stand 1 < stand 2 < stand 3"}, 400)
                 fan["w"] = vals
             if "fan_on" in body:
-                fan["on"] = bool(body.get("fan_on"))
+                with lock:
+                    fan["on"] = bool(body.get("fan_on"))
+                    if not fan["on"]:
+                        fan["disconnected_at"] = None
             if "fan_host" in body:
-                fan["host"] = multi_host(body.get("fan_host"))
+                with lock:
+                    host = multi_host(body.get("fan_host"))
+                    if host != fan["host"]:
+                        fan.update(host=host, connected=False, sent=None, disconnected_at=None)
             if "fan_coast" in body:
                 try:
                     fan["coast"] = max(0, min(1800, int(body.get("fan_coast"))))
@@ -587,9 +594,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 fan_cmd(level)
             except Exception as e:
-                with lock:
-                    fan["connected"] = False
-                    fan["err"] = ("%s: %s" % (type(e).__name__, e))[:80]
+                fan_failed(e)
                 return self._json({"ok": False, "error": fan["err"]}, 502)
             with lock:
                 mode = fan.get("mode") or "auto"

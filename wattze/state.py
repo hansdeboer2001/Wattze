@@ -78,7 +78,8 @@ click = {"want": True, "connected": False, "device": "", "addr": None,
 # ---- ventilator via ESPHome (4 knoppen: uit, 1, 2, 3) ----
 fan = {"on": False, "host": "", "level": 0, "connected": False, "err": "",
        "force_level": None, "force_until": 0.0, "w": [80, 160, 240],
-       "mode": "auto", "coast": 300, "coasting": False}
+       "mode": "auto", "coast": 300, "coasting": False,
+       "disconnected_at": None}
 
 # ---- multiplayer: vaste host, niet instelbaar ----
 MP_HOST = "https://wattze.com"

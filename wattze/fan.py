@@ -11,6 +11,15 @@ send_lock = threading.Lock()
 HYSTERESIS = 20.0
 MIN_DWELL = 3.0
 SAMPLE_SECS = 60.0
+DISCONNECT_GRACE = 10.0
+
+
+def fan_visible():
+    with lock:
+        lost = fan["disconnected_at"]
+        return bool(fan["on"] and fan["host"] and
+                    (fan["connected"] or (lost is not None and
+                     time.monotonic() - lost < DISCONNECT_GRACE)))
 
 
 def level_for(watts, cur, up, now=None, level_start=None):
@@ -43,7 +52,7 @@ def fan_cmd(level):
     with send_lock:
         with lock:
             host = fan["host"]
-            if fan.get("sent") == level:
+            if fan.get("sent") == level and fan["connected"]:
                 fan["level"] = level
                 return
         if not host:
@@ -53,6 +62,7 @@ def fan_cmd(level):
             fan["sent"] = level
             fan["level"] = level
             fan["connected"] = True
+            fan["disconnected_at"] = None
             fan["err"] = ""
 
 
@@ -64,12 +74,17 @@ def fan_ping():
     _post(host + "/button/kickr_ping/press")
     with lock:
         fan["connected"] = True
+        fan["disconnected_at"] = None
         fan["err"] = ""
 
 
-def _fail(e):
+def fan_failed(e):
     with lock:
+        if fan["disconnected_at"] is None:
+            fan["disconnected_at"] = time.monotonic()
         fan["connected"] = False
+        # The ESP may have reset its output after missed pings; resend the level.
+        fan["sent"] = None
         fan["err"] = ("%s: %s" % (type(e).__name__, e))[:80]
 
 
@@ -123,11 +138,12 @@ def fan_loop():
                 try:
                     fan_cmd(0)
                 except (OSError, URLError, TimeoutError, RuntimeError) as e:
-                    _fail(e)
+                    fan_failed(e)
             with lock:
                 fan["level"] = 0
                 fan["coasting"] = False
                 fan["connected"] = False
+                fan["disconnected_at"] = None
                 fan["err"] = "" if not on else ("geen adres" if not host else fan["err"])
             last = 0 if host else None
             level_start = now
@@ -145,7 +161,9 @@ def fan_loop():
         else:
             lvl = level_for(smooth, 0 if last is None else last, up, now, level_start)
         try:
-            if lvl != last:
+            with lock:
+                needs_send = fan.get("sent") != lvl
+            if lvl != last or needs_send:
                 fan_cmd(lvl)
                 last = lvl
                 level_start = now
@@ -154,4 +172,4 @@ def fan_loop():
                 fan_ping()
                 last_ping = now
         except (OSError, URLError, TimeoutError, RuntimeError) as e:
-            _fail(e)
+            fan_failed(e)

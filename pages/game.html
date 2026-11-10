@@ -56,7 +56,7 @@ body.hr-on #ride:fullscreen #pwr,body.hr-on #ride:-webkit-full-screen #pwr{botto
 #ride.has-erg:not(:fullscreen):not(:-webkit-full-screen) #climb{top:258px}
 #ride.has-erg:not(:fullscreen):not(:-webkit-full-screen) #segBar{top:138px}
 #ride.has-erg:not(:fullscreen):not(:-webkit-full-screen) #rideStrip{top:138px}
-#zFan{cursor:pointer;pointer-events:auto}
+#zFan{display:none;cursor:pointer;pointer-events:auto}
 #ride.erg-fs:fullscreen #zCard,#ride.erg-fs:-webkit-full-screen #zCard{top:142px;left:12px;bottom:auto}
 #ride.erg-fs:fullscreen #rideStrip,#ride.erg-fs:-webkit-full-screen #rideStrip{top:142px}
 #ride.erg-fs:fullscreen #map,#ride.erg-fs:-webkit-full-screen #map{top:142px;right:12px;bottom:auto}
@@ -373,7 +373,15 @@ let vgear=__VGEAR__;
 let CLICK={want:true,connected:false,battery:null,err:''};
 let course={pts:[],step:25,total:20000,km:20,seed:7,gain:0,minE:0,maxE:0,name:'Vrije route',segs:null,blurb:null};
 const es=new EventSource('/events');
+function renderGameFan(f){
+  const zf=document.getElementById('zFanN');
+  document.getElementById('zFan').style.display=f.visible?'flex':'none';
+  zf.dataset.on=f.on?'1':'';
+  zf.dataset.connected=f.connected?'1':'';
+  zf.textContent=!f.on||!f.connected?'-':(f.coasting?'0+':(f.level?String(f.level):'uit'));
+}
 es.onmessage=e=>{const d=JSON.parse(e.data);power=simOn?simW():d.power;cadence=simOn?simC():d.cadence;hr=d.hr||0;
+  if(d.fan)renderGameFan(d.fan);
   if(typeof d.gear==='number'&&d.gear!==vgear){vgear=d.gear;lastPostG=999;lastPostT=0;gearLabel();}
   if(typeof d.gear_max==='number'&&d.gear_max!==VGEAR_MAX){
     VGEAR_MAX=d.gear_max;VGEAR_STEP=16/Math.max(1,VGEAR_MAX-1);
@@ -396,13 +404,7 @@ setInterval(async()=>{
     updateTrainerDiagnostics(d.trainer_diagnostics||{});
     if(!simOn){power=d.power;cadence=d.cadence;hr=d.hr||0;}
     CLICK=d.click||CLICK;clickLabel();
-    const zf=document.getElementById('zFanN');
-    if(zf){
-      const f=d.fan||{};
-      zf.dataset.on=f.on?'1':'';
-      zf.dataset.connected=f.connected?'1':'';
-      zf.textContent=!f.on?'-':(!f.connected?'-':(f.coasting?'0+':(f.level?String(f.level):'uit')));
-    }
+    if(d.fan)renderGameFan(d.fan);
   }catch(e){updateSimTrainerGrade(null);}
 },2000);
 let powerHiddenAt=0;

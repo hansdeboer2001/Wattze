@@ -86,7 +86,7 @@ class FixtureHandler(http_handler.Handler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path in ("/game", "/klassementen") or path.startswith("/online-kom/"):
+        if path in ("/game", "/klassementen", "/remote") or path.startswith("/online-kom/"):
             return super().do_GET()
         if path == "/events":
             return self._send(200, "text/event-stream", b'data: {"power":0,"cadence":0,"hr":0}\n\n')
@@ -436,6 +436,35 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertNotIn("diagnostic", grades[-1])
         self.assertEqual(commands, ["start", "stop"])
         self.assertFalse(self.page.evaluate("simOn"))
+
+    def test_fan_grace_and_recovery_on_game_and_remote(self):
+        current = {"on": True, "connected": True, "visible": True, "level": 2}
+        self.page.route("**/api", lambda route: route.fulfill(json={
+            "power": 0, "cadence": 0, "hr": 0, "fan": current}))
+        self.page.route("**/gear", lambda route: route.fulfill(json={"v": 6, "max": 12}))
+        for path, selector in (("/game", "#zFan"), ("/remote", "#fanBox")):
+            with self.subTest(path=path):
+                current.update(on=True, connected=True, visible=True)
+                self.page.goto(self.base + path)
+                if path == "/game":
+                    self.page.evaluate("document.getElementById('overlay').style.display='none'")
+                self.page.wait_for_function("selector => getComputedStyle(document.querySelector(selector)).display !== 'none'",
+                                            arg=selector)
+                for connected, visible in ((False, True), (False, True), (True, True),
+                                            (False, False), (True, True)):
+                    current.update(connected=connected, visible=visible)
+                    self.page.evaluate("fan => es.onmessage({data:JSON.stringify({power:0,cadence:0,fan})})",
+                                       current)
+                    self.assertEqual(self.page.locator(selector).is_visible(), visible)
+                    if visible and path == "/game":
+                        self.assertEqual(self.page.locator("#zFanN").text_content(), "2" if connected else "-")
+                    if visible and path == "/remote":
+                        self.assertEqual(self.page.locator("#fanBtns button.on").count(), 1 if connected else 0)
+                        if not connected:
+                            self.assertIn("verbinding herstellen", self.page.locator("#fanBox .fl").text_content())
+                current.update(on=False, connected=False, visible=False)
+                self.page.evaluate("fan => es.onmessage({data:JSON.stringify({power:0,cadence:0,fan})})", current)
+                self.assertFalse(self.page.locator(selector).is_visible())
 
     def test_desktop_and_mobile_layout(self):
         self.register()

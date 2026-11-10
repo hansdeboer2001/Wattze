@@ -3,6 +3,7 @@ import time
 from wattze.state import *
 from wattze.storage import save_config
 from wattze import trainer_diagnostics
+from wattze.fan import fan_visible
 
 def dbg(msg):
     with lock:
@@ -162,4 +163,5 @@ def snapshot():
                 "avg": round(ride["sum_p"] / ride["samples"], 1) if ride["samples"] else 0,
                 "max": ride["max_p"], "gear": gear["v"], "gear_max": gear["max"],
                 "click": {k: click[k] for k in ("want", "connected", "device", "battery", "err", "addr")},
-                "fan": {k: fan[k] for k in ("on", "host", "level", "connected", "err", "w", "mode", "coasting")}}
+                "fan": {"visible": fan_visible(),
+                        **{k: fan[k] for k in ("on", "host", "level", "connected", "err", "w", "mode", "coasting")}}}

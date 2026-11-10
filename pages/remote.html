@@ -73,10 +73,11 @@ fetch('/api').then(r=>r.json()).then(j=>{if(j.fan)renderFan(j.fan);}).catch(()=>
 const es=new EventSource('/events');
 function renderFan(f){
   const box=document.getElementById('fanBox');
-  if(!f||!f.connected){box.style.display='none';return;}
+  if(!f||!f.visible){box.style.display='none';return;}
   box.style.display='block';
+  box.querySelector('.fl').textContent=f.connected?'Ventilator':'Ventilator (verbinding herstellen...)';
   const lvl=f.level||0;
-  document.querySelectorAll('#fanBtns button').forEach(b=>b.classList.toggle('on',+b.dataset.lvl===lvl));
+  document.querySelectorAll('#fanBtns button').forEach(b=>b.classList.toggle('on',!!f.connected&&+b.dataset.lvl===lvl));
 }
 es.onmessage=e=>{
   online(true);
@@ -91,7 +92,7 @@ document.querySelectorAll('#fanBtns button').forEach(b=>b.onclick=async()=>{
     const r=await fetch('/fan',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({level:+b.dataset.lvl,hold:true})});
     const j=await r.json();
-    if(j.ok)renderFan({connected:true,level:j.level});
+    if(j.ok)renderFan({visible:true,connected:true,level:j.level});
     online(true);
   }catch(e){online(false);}
 });
