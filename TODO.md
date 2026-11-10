@@ -11,7 +11,8 @@ hieronder per onderdeel bijgehouden.
 - Groter versnellingsbereik (-8% tot +8%): geimplementeerd; rijgevoel nog controleren.
 - Punt 1: cadansontvangst hersteld; gebruiker meldt werkende cadans. Stoppen en opnieuw verbinden nog controleren.
 - Punt 3: vertraagd verbergen van de ventilatorweergave toegevoegd; fysieke praktijkcontrole staat nog open.
-- Verificatie: alle 128 tests slagen, inclusief de beschikbare Edge-browsertests.
+- Punt 5: alleen Windows-pc wakker houden tijdens rit en pauze toegevoegd; praktijkcontrole staat nog open.
+- Verificatie: alle 139 tests slagen, inclusief de beschikbare Edge-browsertests.
 
 ## 1. Ontbrekende RPM
 
@@ -51,7 +52,7 @@ lange onderbreking wordt opnieuw een basis opgebouwd.
 ### Controle en beperking
 
 Twaalf nieuwe telemetrietests controleren optionele velden, afgebroken pakketten,
-ontbrekend versus nul, vervaltijd, crankberekening, wraps en resets. Alle 128
+ontbrekend versus nul, vervaltijd, crankberekening, wraps en resets. Alle 139
 tests slagen. De eerdere proefritten bevatten al cadans, maar zijn van voor
 deze ontvangstwijziging. Na de wijziging heeft de gebruiker gemeld dat cadans
 lijkt te werken. Dat bevestigt gebruik tijdens fietsen, maar is geen expliciete
@@ -122,7 +123,7 @@ terwijl de ESP de fysieke ventilator intussen heeft uitgezet.
 Dertien backendtests controleren onder meer 9,999 versus 10 seconden, herhaalde
 fouten, herstel, cachegedrag, opnieuw versturen, uitschakelen en uitdraaien.
 Een Edge-browsertest controleert de zichtbaarheid en herstelstatus op zowel
-het ritscherm als de telefoonbediening. Alle 128 tests slagen. De ESP-firmware
+het ritscherm als de telefoonbediening. Alle 139 tests slagen. De ESP-firmware
 en de veiligheidsuitschakeling zijn niet gewijzigd. Een echte netwerkonderbreking
 met de fysieke ventilator is nog niet getest.
 
@@ -168,29 +169,50 @@ Bron: `pages/game.html:862-953`, `pages/game.html:3669-3708`.
 
 ## 5. Screensaver voorkomen
 
-- [ ] Tijdens gebruik het scherm wakker houden en automatische schermuitschakeling voorkomen.
+- [x] Alleen de Windows-pc tijdens een actieve of gepauzeerde rit tegen automatische schermuitschakeling en slaapstand beschermen.
+- [ ] In de praktijk controleren dat het scherm tijdens rit en pauze aanblijft en de normale energie-instellingen na ritbeeindiging weer gelden.
+- [ ] Indien een klassieke Windows-screensaver actief is: afzonderlijk vaststellen of hiervoor nog een aanvullende oplossing nodig is.
 
-### Bevindingen
+### Oorspronkelijke bevindingen
 
 Er is momenteel geen expliciete voorziening om het scherm wakker te houden.
 Fullscreen inschakelen is daarvoor op zichzelf geen betrouwbare oplossing.
 
-### Vervolg
+### Uitgevoerd
 
-Voor het ritscherm een Screen Wake Lock onderzoeken, inclusief opnieuw aanvragen
-na terugkeer naar de pagina. Voor de Windows-pc is een oplossing via het
-Python-proces ook mogelijk. Bepalen wanneer de blokkering actief moet zijn,
-bijvoorbeeld tijdens een rit en tijdens pauzes, en wanneer deze wordt vrijgegeven.
+De gebruiker heeft gekozen voor alleen de pc. Een aparte achtergrondthread
+roept de Windows-API `SetThreadExecutionState` aan met `ES_CONTINUOUS`,
+`ES_SYSTEM_REQUIRED` en `ES_DISPLAY_REQUIRED` zolang `rec.active` waar is.
+Een gepauzeerde rit blijft actief en houdt de bescherming dus vast. Na het
+beeindigen van de rit wordt met alleen `ES_CONTINUOUS` vrijgegeven. De thread
+controleert de ritstatus iedere seconde en doet geen extra Windows-aanroepen
+zolang de gewenste toestand ongewijzigd blijft.
 
-### Beperking en open vraag
+Activeren en vrijgeven gebeuren op dezelfde thread, zoals Windows vereist.
+Bij normaal stoppen van de server wordt de thread gestopt en de bescherming
+vrijgegeven. Bij procesbeeindiging ruimt Windows de threadgebonden aanvraag op.
+Een mislukte aanroep wordt gelogd en bij de volgende controle opnieuw geprobeerd,
+zonder de rit of trainerregeling te stoppen.
 
-De telefoonbediening gebruikt een lokaal HTTP-adres. Browser-Wake-Lock werkt
-doorgaans niet via zo'n onbeveiligd LAN-adres. Als ook de telefoon wakker moet
-blijven, vraagt dat een aanvullende oplossing.
+Deze oplossing werkt onafhankelijk van browser, fullscreen en lokaal HTTP.
+De telefoon is niet aangepast. Er worden geen energie-instellingen of
+screensaverinstellingen gewijzigd; handmatig vergrendelen of slapen blijft mogelijk.
 
-Nog vast te stellen: moet dit gelden voor de pc, de telefoon of beide?
+### Controle en beperking
 
-Bron: `pages/game.html:413-416`, `wattze_game.py:85-103`.
+Elf tests met een gemockte Windows-API controleren ritstart, pauze, hervatten,
+ritstop, thread-eigenaarschap, vrijgeven, herhaalde fouten en niet-Windows gedrag.
+Alle 139 tests slagen. Echte automatische schermuitschakeling en slaapstand zijn
+niet afgewacht; de praktijkcontrole staat nog open.
+
+`SetThreadExecutionState` voorkomt automatische schermuitschakeling en slaapstand,
+maar blokkeert een klassieke Windows-screensaver niet gegarandeerd. Dat deel van
+de oorspronkelijke melding blijft apart open als zo'n screensaver wordt gebruikt.
+Als een browser-stopbericht niet bij de backend aankomt, kan de rit actief
+blijven en blijft daarmee ook de bescherming actief tot de rit of Wattze stopt.
+
+Bron: `wattze/keep_awake.py`, `wattze_game.py`, `wattze/rides.py`,
+`tests/test_keep_awake.py`.
 
 ## 6. Voorgrondhuisjes vergroten
 
@@ -254,7 +276,7 @@ Bestand: `WattzeRitten/trainer_diagnostics.jsonl`. Standaard uit; maximaal
 30 minuten of 5 MB. Een nieuwe start vervangt het vorige log.
 Zie `docs/trainer_diagnostics.md` voor de werkwijze.
 Schrijven gebeurt in een achtergrondthread met begrensde wachtrij; een volle
-wachtrij of schrijffout stopt alleen het log. Alle 128 geautomatiseerde tests
+wachtrij of schrijffout stopt alleen het log. Alle 139 geautomatiseerde tests
 slagen, inclusief start/stop in Edge en blokkering/foutgevallen bij het schrijven.
 
 ### Praktijkuitkomst
@@ -403,6 +425,6 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## Aanbevolen volgorde
 
-1. Pc-schermwakkerhouding uitvoeren (punt 5).
+1. De ritstatus na beeindigen herstellen (punt 12).
 2. De menuknop en overige openstaande visuele punten uitvoeren.
 3. De per onderdeel genoemde praktijkcontroles en foutpaden afronden.

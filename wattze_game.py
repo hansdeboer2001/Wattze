@@ -16,6 +16,7 @@ from wattze.fan import fan_loop
 from wattze.ble_hr import hr_loop
 from wattze.ble_wattze import ble_loop
 from wattze.http_handler import Handler
+from wattze.keep_awake import keep_awake_loop
 from wattze.pages import lan_ip
 from wattze.rides import rec_sample_loop
 from wattze.state import LOG_FILE, PORT
@@ -100,7 +101,16 @@ def main():
             import webbrowser
             webbrowser.open(url)
         threading.Thread(target=_open_browser, daemon=True).start()
-    srv.serve_forever()
+    wake_stop = threading.Event()
+    wake_thread = threading.Thread(target=keep_awake_loop, args=(wake_stop,),
+                                   name="keep-awake", daemon=True)
+    wake_thread.start()
+    try:
+        srv.serve_forever()
+    finally:
+        wake_stop.set()
+        wake_thread.join(timeout=2.0)
+        srv.server_close()
 
 
 if __name__ == "__main__":
