@@ -1,0 +1,275 @@
+# Todolijst
+
+Deze lijst is uitgewerkt op basis van broncodeonderzoek. De bevindingen zijn
+niet met een draaiende applicatie of trainer gecontroleerd. Er zijn voor dit
+onderzoek geen codewijzigingen, builds of tests uitgevoerd.
+
+## 1. Ontbrekende RPM
+
+- [ ] Onderzoeken welke cadansgegevens de trainer levert en de verwerking herstellen.
+
+### Bevindingen
+
+De RPM-weergave en de koppeling met trainergegevens bestaan al. Er zijn wel
+concrete tekortkomingen in de ontvangstcode:
+
+- De FTMS-parser houdt niet correct rekening met pakketten waarin het snelheidsveld ontbreekt. Daardoor kunnen andere velden verkeerd worden gelezen.
+- Een pakket zonder cadans zet RPM direct op nul, ook als een eerder pakket wel cadans bevatte.
+- De alternatieve ontvangst via Cycling Power leest alleen vermogen, geen cadans.
+
+### Vervolg
+
+Eerst vaststellen welk type gegevens de trainer verstuurt. Daarna de betreffende
+verwerking corrigeren, met onderscheid tussen ontbrekende gegevens en werkelijk
+`0 RPM`. Met ontvangen trainergegevens controleren of de cadans stabiel en juist
+wordt weergegeven.
+
+Bron: `wattze/telemetry.py:29-77`, `wattze/ble_wattze.py:206-218`.
+
+## 2. Sluitknop op mobiel
+
+- [ ] Het kruisje in het afstandsbedieningsscherm op mobiel verbergen.
+
+### Bevindingen
+
+Het kruisje staat nu altijd rechtsboven. Het is een link terug naar het
+dashboard, geen browser-sluitknop.
+
+### Vervolg
+
+Alleen deze link op mobiel verbergen, zonder de overige bediening te wijzigen.
+Ook controleren in liggende telefoonstand. Een schermbreedtegrens kan ook een
+smal desktopvenster raken; een touchcriterium kan tablets en hybride laptops
+meenemen.
+
+Bron: `pages/remote.html:36-39`.
+
+## 3. Ventilator na verbindingsverlies
+
+- [ ] De ventilatorweergave pas na 10 seconden aaneengesloten verbindingsverlies verbergen.
+
+### Bevindingen
+
+De huidige schermen verschillen:
+
+- In het afstandsbedieningsscherm verdwijnt de ventilator direct bij verbindingsverlies.
+- In het ritscherm blijft het vak staan, maar wordt de waarde `-`.
+- Er wordt nog geen tijdstip van verbindingsverlies bijgehouden.
+
+### Vervolg
+
+Dezelfde wachttijd op beide schermen toepassen. De 10 seconden gaan in vanaf
+gedetecteerd verbindingsverlies. Bij herstel binnen die tijd blijft de weergave
+staan en vervalt de timer. Nieuwe mislukte verbindingspogingen mogen de timer
+niet telkens opnieuw starten. Na langer verbindingsverlies de weergave verbergen;
+bij herstel direct weer tonen.
+
+### Aandachtspunten
+
+De ESP schakelt de ventilator uit veiligheid na ongeveer 8 seconden zonder ping
+uit. Dat veiligheidsmechanisme moet los blijven staan van de zichtbaarheid op
+het scherm. Ook controleren of de gewenste ventilatorstand na herstel opnieuw
+wordt verstuurd: een herstelde verbinding betekent niet automatisch dat de
+fysieke ventilator weer op de gewenste stand draait.
+
+Bron: `wattze/fan.py:35-73`, `pages/remote.html:72-86`,
+`pages/game.html:391-403`, `esphome/esp32-relays.yaml:133-143`.
+
+## 4. Meer NPC's
+
+- [ ] De lokale dichtheid van NPC's verhogen, niet alleen het totale aantal.
+
+### Bevindingen
+
+In de lokale modus zijn er 10 meerijders en 10 tegenliggers. Die staan relatief
+ver uit elkaar; tegenliggers worden aanvankelijk over de hele route verdeeld.
+Nieuwe NPC's verschijnen 220-1620 meter vooruit, terwijl maar een klein deel
+van dat traject tegelijk in beeld past.
+
+Multiplayer kan aantallen en posities van de server ontvangen. Alleen de lokale
+aantallen aanpassen verandert dat verkeer niet.
+
+### Vervolg
+
+Aantallen en start-/respawnverdeling samen aanpassen, zodat ontmoetingen
+regelmatiger plaatsvinden zonder zichtbaar in beeld te springen. Solo,
+multiplayerfallback en servergestuurd verkeer afzonderlijk controleren.
+
+### Aandachtspunten
+
+Meer NPC's beinvloeden ook slipstream en daarmee het rijgedrag. Na aanpassing
+controleren op lege perioden, tijd tot de eerste tegenligger, zichtbaar
+verschijnen van NPC's en prestaties.
+
+Bron: `pages/game.html:862-953`, `pages/game.html:3669-3708`.
+
+## 5. Screensaver voorkomen
+
+- [ ] Tijdens gebruik het scherm wakker houden en automatische schermuitschakeling voorkomen.
+
+### Bevindingen
+
+Er is momenteel geen expliciete voorziening om het scherm wakker te houden.
+Fullscreen inschakelen is daarvoor op zichzelf geen betrouwbare oplossing.
+
+### Vervolg
+
+Voor het ritscherm een Screen Wake Lock onderzoeken, inclusief opnieuw aanvragen
+na terugkeer naar de pagina. Voor de Windows-pc is een oplossing via het
+Python-proces ook mogelijk. Bepalen wanneer de blokkering actief moet zijn,
+bijvoorbeeld tijdens een rit en tijdens pauzes, en wanneer deze wordt vrijgegeven.
+
+### Beperking en open vraag
+
+De telefoonbediening gebruikt een lokaal HTTP-adres. Browser-Wake-Lock werkt
+doorgaans niet via zo'n onbeveiligd LAN-adres. Als ook de telefoon wakker moet
+blijven, vraagt dat een aanvullende oplossing.
+
+Nog vast te stellen: moet dit gelden voor de pc, de telefoon of beide?
+
+Bron: `pages/game.html:413-416`, `wattze_game.py:85-103`.
+
+## 6. Voorgrondhuisjes vergroten
+
+- [ ] Voorgrondgebouwen groter maken ten opzichte van de fietser, zonder de achtergrond mee te vergroten.
+
+### Bevindingen
+
+De voorgrondhuizen zijn al afzonderlijk geschaald, maar sommige zijn inclusief
+dak maar weinig hoger dan de fietser. Dat ondersteunt de gemelde schaalafwijking.
+
+### Vervolg
+
+Alleen de voorgrondgebouwen vergroten. Afstanden tussen gebouwen en het
+verschijnen aan de schermranden mee controleren. Achtergrondhuizen en algemene
+scenezoom ongemoeid laten.
+
+### Aandachtspunten
+
+Gebouwen worden na de fietsers getekend en kunnen deze dus bedekken. Algemene
+scenezoom is geen oplossing, want die vergroot de fietser evenveel. Dorp,
+rijwoningen, los huis en boerderij vergelijken in normaal venster en fullscreen.
+
+Bron: `pages/game.html:1655-1700`, `pages/game.html:1888-1893`.
+
+## 7. Schakelen bij 0% routegevoel
+
+- [ ] Achterhalen waarom schakelen bij 0% routegevoel geen merkbaar effect heeft en de daadwerkelijke fout herstellen.
+
+### Bevindingen
+
+De huidige formule hoort dit al te ondersteunen:
+
+```text
+trainerhelling = routehelling * routegevoel + versnellingsbijdrage
+```
+
+Bij 0% routegevoel blijft de versnellingsbijdrage bestaan. De formule zelf is
+niet de aangetoonde oorzaak.
+
+Wel gevonden:
+
+- In ERG-modus wordt vermogen aangestuurd, niet de hellingsbijdrage van de versnelling.
+- Een mislukte hellingsaanvraag wordt niet betrouwbaar opnieuw aangeboden.
+- Een actieve gamepagina moet de gewijzigde versnelling omzetten naar een nieuw trainercommando.
+
+### Vervolg
+
+Met de trainerhelling zichtbaar controleren of schakelen het commando verandert,
+of dat commando wordt bevestigd en of de trainer erop reageert. SIM/ERG-modus,
+actieve/gepauzeerde rit, verbindingsstatus en mislukte verzoeken meenemen.
+Niet zonder aangetoonde noodzaak de routegevoel-formule veranderen.
+
+Bron: `pages/game.html:794-831`, `pages/game.html:3730-3740`.
+
+## 8. Samenvatting in screenshot
+
+- [ ] De gewenste ritsamenvatting volledig en consistent in het screenshot opnemen.
+
+### Bevindingen
+
+Screenshots bevatten al een beperkte tekstsamenvatting, maar niet de volledige
+eindkaart. Het screenshot wordt gemaakt voordat de eindkaart is opgebouwd.
+Daardoor kunnen tijd en afstand iets afwijken.
+
+Losse HTML-overlays en afzonderlijke grafiekcanvassen worden niet automatisch
+meegenomen bij het kopieren van het hoofdcanvas.
+
+### Vervolg
+
+Dezelfde eindgegevens gebruiken voor screenshot en eindkaart en de gewenste
+statistieken als leesbare kaart in het screenshot tekenen. Eventuele grafieken
+pas toevoegen nadat deze zijn opgebouwd.
+
+### Open vragen
+
+- Alleen statistieken opnemen, of ook grafieken en KOM-resultaten?
+- Moet dit ook voor Blokjes gelden? Dat heeft een aparte screenshotfunctie.
+
+Bron: `pages/game.html:3344-3457`, `pages/blokjes.html:482-544`.
+
+## 9. Verstuurde trainerhelling tonen
+
+- [ ] In de ontwikkelweergave het daadwerkelijk naar de trainer verstuurde hellingspercentage tonen, zonder de aansturing te veranderen.
+
+### Bevindingen
+
+Nu staat de routehelling in beeld. De trainer krijgt een aangepaste waarde door
+routegevoel, versnelling en begrenzing.
+
+De backend bewaart niet altijd de werkelijk verstuurde waarde. Een doel van
+`18%` wordt in het BLE-pakket begrensd tot `16%`, maar kan als `18%`
+geregistreerd blijven.
+
+### Vervolg
+
+De daadwerkelijk gecodeerde waarde registreren en tonen, bij voorkeur met de
+bevestigingsstatus van de trainer. Bij ERG of ontbrekende gegevens geen
+misleidende `0%` tonen. De zichtbare waarde moet het verstuurde of bevestigde
+SIM-commando beschrijven, niet een gemeten fysieke helling of weerstand.
+
+### Open vraag
+
+Er is een simulatie-/testweergave via `?sim=1`, maar geen afzonderlijke algemene
+developermodus gevonden. Bepalen waar deze extra waarde zichtbaar moet worden.
+
+Bron: `wattze/ble_wattze.py:155-158`, `wattze/ble_wattze.py:294-306`,
+`pages/game.html:3250-3274`.
+
+## 10. Rechteroverlays in fullscreen
+
+- [ ] De rechteroverlays in fullscreen groter en beter leesbaar maken.
+
+### Bevindingen
+
+Het routeprofiel en klimprofiel krijgen nu al een beperkte fullscreenvergroting,
+maar blijven standaard slechts 110 pixels hoog.
+
+### Vervolg
+
+Deze overlays specifiek in fullscreen vergroten en hun onderlinge posities
+aanpassen. Niet de algemene vergroting van alle overlays verhogen. Normale
+fullscreen en ERG-fullscreen hebben verschillende posities en moeten beide op
+overlap worden gecontroleerd, ook op lage schermen.
+
+### Open vragen
+
+- Gaat het inderdaad om de route- en klimprofielen?
+- Moet vooral de hoogte, de tekst of de gehele weergave groter worden?
+
+Bron: `pages/game.html:39-67`, `pages/game.html:98`.
+
+## 11. Menuknop in het spel
+
+- [ ] Een menuknop in het spel toevoegen om tijdens het spelen routegevoel aan te passen en te pauzeren.
+
+## 12. Spel hervatten na beeindigen
+
+- [ ] Controleren waarom 'Spel hervatten' zichtbaar blijft na het beeindigen van het spel.
+
+## Aanbevolen volgorde
+
+1. De werkelijke trainerhelling zichtbaar maken en de RPM-ontvangst controleren.
+2. Met die informatie het schakelprobleem bij 0% routegevoel diagnosticeren.
+3. De ventilatorvertraging en schermwakkerhouding aanpakken.
+4. De visuele aanpassingen en screenshotsamenvatting uitvoeren.
