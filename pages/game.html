@@ -48,7 +48,8 @@ canvas{width:100%;background:#0b0e14;border-radius:10px;display:block}
 #ride:fullscreen,#ride:-webkit-full-screen{background:#0b0e14;width:100%;height:100%}
 #ride:fullscreen #game,#ride:-webkit-full-screen #game{width:100%;height:100%;border-radius:0;height:100%}
 #ride:fullscreen #zCard,#ride:fullscreen #rideStrip,#ride:fullscreen #map,#ride:fullscreen #climb,#ride:fullscreen #pwr,#ride:fullscreen #hrz,#ride:fullscreen #segBar,#ride:fullscreen #alert,#ride:fullscreen #komAlert,#ride:-webkit-full-screen #zCard,#ride:-webkit-full-screen #rideStrip,#ride:-webkit-full-screen #map,#ride:-webkit-full-screen #climb,#ride:-webkit-full-screen #pwr,#ride:-webkit-full-screen #hrz,#ride:-webkit-full-screen #segBar,#ride:-webkit-full-screen #alert,#ride:-webkit-full-screen #komAlert{zoom:1.16}
-#ride:fullscreen #climb,#ride:-webkit-full-screen #climb{top:158px}
+#ride:fullscreen #map,#ride:fullscreen #climb,#ride:-webkit-full-screen #map,#ride:-webkit-full-screen #climb{width:32%;height:168px}
+#ride:fullscreen #climb,#ride:-webkit-full-screen #climb{top:220px}
 #ride:fullscreen #segBar,#ride:-webkit-full-screen #segBar{top:88px}
 body.hr-on #ride:fullscreen #pwr,body.hr-on #ride:-webkit-full-screen #pwr{bottom:100px}
 #ride:fullscreen #komLive,#ride:-webkit-full-screen #komLive{font-size:14px}
@@ -67,7 +68,7 @@ body.hr-on #ride:fullscreen #pwr,body.hr-on #ride:-webkit-full-screen #pwr{botto
 #ride.erg-fs:fullscreen #zCard,#ride.erg-fs:-webkit-full-screen #zCard{top:142px;left:12px;bottom:auto}
 #ride.erg-fs:fullscreen #rideStrip,#ride.erg-fs:-webkit-full-screen #rideStrip{top:142px}
 #ride.erg-fs:fullscreen #map,#ride.erg-fs:-webkit-full-screen #map{top:142px;right:12px;bottom:auto}
-#ride.erg-fs:fullscreen #climb,#ride.erg-fs:-webkit-full-screen #climb{top:262px;right:12px;bottom:auto}
+#ride.erg-fs:fullscreen #climb,#ride.erg-fs:-webkit-full-screen #climb{top:360px;right:12px;bottom:auto}
 #ride.erg-fs:fullscreen #segBar,#ride.erg-fs:-webkit-full-screen #segBar{top:142px}
 #ride.erg-fs:fullscreen #alert,#ride.erg-fs:-webkit-full-screen #alert{top:298px;bottom:auto}
 #ride.erg-fs:fullscreen #komAlert,#ride.erg-fs:-webkit-full-screen #komAlert{top:258px;bottom:auto}
@@ -857,7 +858,33 @@ function shiftGear(d){
 const cv=document.getElementById('game'),mp=document.getElementById('map');
 const ride=document.getElementById('ride'),btnFs=document.getElementById('btnFs');
 function fsOn(){return document.fullscreenElement===ride||document.webkitFullscreenElement===ride;}
-function setFsLabel(){const on=fsOn();btnFs.textContent=on?'\u2715':'\u26F6';btnFs.title=on?'Volledig scherm sluiten':'Volledig scherm';syncErgFs();}
+function setFsLabel(){const on=fsOn();btnFs.textContent=on?'\u2715':'\u26F6';btnFs.title=on?'Volledig scherm sluiten':'Volledig scherm';syncErgFs();placeRightOverlays();}
+function placeRightOverlays(){
+  const map=document.getElementById('map'),climb=document.getElementById('climb');
+  if(!map||!climb)return;
+  if(!fsOn()){
+    if(map.dataset.fsFit){
+      map.style.height='';map.style.width='';
+      climb.style.height='';climb.style.width='';climb.style.top='';
+      delete map.dataset.fsFit;
+    }
+    return;
+  }
+  const rr=ride.getBoundingClientRect(),gap=14,minH=110;
+  const want=Math.round(Math.min(168,Math.max(minH,rr.height*0.2)));
+  const pwr=document.getElementById('pwr');
+  map.style.width=climb.style.width='32%';
+  let h=want;
+  for(let n=0;n<8;n++){
+    map.style.height=climb.style.height=h+'px';
+    climb.style.top=(map.getBoundingClientRect().bottom-rr.top+gap)+'px';
+    const bottom=climb.getBoundingClientRect().bottom-rr.top;
+    const limit=pwr.getBoundingClientRect().top-rr.top-gap;
+    if(bottom<=limit||h<=minH)break;
+    h=Math.max(minH,h-Math.ceil((bottom-limit)/2)-2);
+  }
+  map.dataset.fsFit='1';
+}
 btnFs.onclick=()=>{
   if(fsOn()){(document.exitFullscreen||document.webkitExitFullscreen).call(document);}
   else{(ride.requestFullscreen||ride.webkitRequestFullscreen).call(ride);}
@@ -2025,7 +2052,7 @@ function drawMap(){
   profileSurface(mx,MW,MH,mys,mgs);
   const mX=Math.max(0,Math.min(MW,dist/course.total*MW));
   mx.fillStyle='rgba(0,0,0,.55)';mx.fillRect(mX,0,MW-mX,MH);
-  const mfs=OVERLAY_FS/TS;
+  const mfs=(OVERLAY_FS/TS)*(fsOn()?1.25:1);
   mx.font=fpx(mfs);
   segs.forEach((sg,i)=>{
     const x0=sg.at/course.total*MW,x1=sg.end/course.total*MW;
@@ -2046,7 +2073,7 @@ function drawClimb(){
   const ahead=Math.min(600,Math.max(1,course.total-dist));
   let mn=1e9,mx2=-1e9,maxG=-99;
   for(let px=0;px<=W;px+=4){const e=elevOf(course,dist+px/W*ahead);if(e<mn)mn=e;if(e>mx2)mx2=e;}
-  const fs=OVERLAY_FS;
+  const fs=OVERLAY_FS*(fsOn()?1.25:1);
   const span=Math.max(10,mx2-mn),mid=(mn+mx2)/2,top=Math.max(14,fs+4),bot=H-4;
   const yOf=e=>bot-((e-(mid-span/2))/span)*(bot-top);
   const ys=[],gs=[];
@@ -3793,7 +3820,7 @@ function frame(){
   }
   samplePower(wall);
   drawPower(now);
-  if(wall-lastSlow>250){mx=fit(mp);drawMap();drawClimb();drawHr(now);updateAlert();renderKomLive(el);drawErgTL();readFtp();lastSlow=wall;}
+  if(wall-lastSlow>250){mx=fit(mp);drawMap();drawClimb();placeRightOverlays();drawHr(now);updateAlert();renderKomLive(el);drawErgTL();readFtp();lastSlow=wall;}
   } finally {
     requestAnimationFrame(frame);
   }

@@ -15,7 +15,8 @@ hieronder per onderdeel bijgehouden.
 - Punt 12: verouderde pauze-/hervatmelding na beeindigen hersteld en met vier extra Edge-tests gecontroleerd; praktijkcontrole staat nog open.
 - Punt 4: lokale NPC's staan vóór en achter de speler, in een middenstand tussen de oude en de te drukke verdeling. Serververkeer is ongewijzigd. Praktijkcontrole staat nog open.
 - Punt 6: voorgrondgebouwen zijn 45% groter; achtergrond is ongewijzigd. Praktijkcontrole in venster en fullscreen staat nog open.
-- Verificatie: alle 148 tests slagen, inclusief Edge.
+- Punt 10: route- en klimprofiel zijn alleen in fullscreen groter. Praktijkcontrole in normaal en ERG-fullscreen staat nog open.
+- Verificatie: alle 149 tests slagen, inclusief Edge.
 - Punt 11: menuknop linksonder toegevoegd; Stop-knop verwijderd. Pauze zet de scène stil zonder eindkaart. Praktijkcontrole staat nog open.
 - Punt 2: kruisje op de telefoonafstandsbediening verborgen bij aanraakbediening, ook liggend. Een smal desktopvenster behoudt de link.
 
@@ -411,7 +412,8 @@ Bron: `wattze/ble_wattze.py:155-158`, `wattze/ble_wattze.py:294-306`,
 
 ## 10. Rechteroverlays in fullscreen
 
-- [ ] De rechteroverlays in fullscreen groter en beter leesbaar maken.
+- [x] De rechteroverlays in fullscreen groter en beter leesbaar maken.
+- [ ] In normaal fullscreen en ERG-fullscreen, ook op een laag scherm, controleren dat route- en klimprofiel groter zijn en elkaar niet overlappen.
 
 ### Bevindingen
 
@@ -420,10 +422,11 @@ maar blijven standaard slechts 110 pixels hoog.
 
 ### Vervolg
 
-Deze overlays specifiek in fullscreen vergroten en hun onderlinge posities
-aanpassen. Niet de algemene vergroting van alle overlays verhogen. Normale
-fullscreen en ERG-fullscreen hebben verschillende posities en moeten beide op
-overlap worden gecontroleerd, ook op lage schermen.
+Alleen het route- en klimprofiel zijn in fullscreen hoger (168 px) en breder
+(32%). De tekst in die twee profielen is 25% groter. De algemene overlayzoom
+blijft 1,16. Het klimprofiel schuift onder het routeprofiel en krimpt op een
+laag scherm tot boven de vermogensgrafiek. Normaal venster blijft 110 px hoog.
+De praktijkcontrole staat nog open.
 
 ### Open vragen
 
@@ -498,5 +501,5 @@ Bron: `pages/game.html` (`finishRide`, `btnEndRide`),
 2. Ventilatorvertraging (punt 3) is geimplementeerd; alleen de fysieke praktijkcontrole staat nog open.
 3. Pc-schermwakkerhouding (punt 5) is geimplementeerd; werking tijdens rit/pauze en vrijgave na beeindigen nog in de praktijk controleren. Telefoon is uitgesloten; een klassieke screensaver blijft zo nodig een afzonderlijk aandachtspunt.
 4. Menuknop (punt 11) is toegevoegd. Nog controleren dat pauze de scène stilzet en beëindigen via het menu de samenvatting opent.
-5. Fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 10 en 8). Voorgrondgebouwen (punt 6) nog in venster en fullscreen controleren. NPC-dichtheid (punt 4) nog in een rit controleren. Het mobiele kruisje (punt 2) nog op een echte telefoon controleren.
+5. Screenshotsamenvatting uitvoeren (punt 8). Rechteroverlays (punt 10) zijn in fullscreen groter; nog in normaal en ERG-fullscreen controleren. Voorgrondgebouwen (punt 6) nog in venster en fullscreen controleren. NPC-dichtheid (punt 4) nog in een rit controleren. Het mobiele kruisje (punt 2) nog op een echte telefoon controleren.
 6. De resterende foutafhandeling van trainercommando's uit punt 7 gericht onderzoeken; normale SIM-werking bij 0% is al bevestigd.

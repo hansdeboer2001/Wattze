@@ -500,6 +500,69 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         for key in ("village", "gaps", "farm", "barn", "mill", "row", "single", "alpsFarm", "alpsChalet", "lamps", "back", "chapel", "inside", "outside"):
             self.assertTrue(scenery[key], key)
 
+    def test_fullscreen_right_overlays_grow_without_covering_each_other(self):
+        self.page.goto(self.base + "/game")
+        self.page.evaluate("document.getElementById('overlay').style.display='none'")
+        layout = self.page.evaluate("""() => {
+            startRide();
+            drawClimb();
+            const map = document.getElementById('map');
+            const climb = document.getElementById('climb');
+            const pwr = document.getElementById('pwr');
+            const css = [...document.styleSheets].flatMap(sheet => {
+                try { return [...sheet.cssRules].map(rule => rule.cssText); }
+                catch (e) { return []; }
+            }).join('\\n');
+            const zoom = css.includes('zoom: 1.16') || css.includes('zoom:1.16');
+            const windowed = {
+                map: getComputedStyle(map).height,
+                climb: getComputedStyle(climb).height,
+                width: getComputedStyle(map).width
+            };
+            const orig = fsOn;
+            const boxes = (short) => {
+                fsOn = () => true;
+                ride.style.height = short ? '640px' : '900px';
+                document.getElementById('ride').classList.toggle('erg-fs', false);
+                placeRightOverlays();
+                const rr = ride.getBoundingClientRect();
+                const rel = (el) => {
+                    const r = el.getBoundingClientRect();
+                    return {top: r.top - rr.top, bottom: r.bottom - rr.top, width: r.width, height: r.height};
+                };
+                const normal = {map: rel(map), climb: rel(climb), pwr: rel(pwr)};
+                ride.classList.add('erg-fs');
+                map.style.top = '142px';
+                placeRightOverlays();
+                const erg = {map: rel(map), climb: rel(climb), pwr: rel(pwr)};
+                ride.classList.remove('erg-fs');
+                map.style.top = '';
+                fsOn = orig;
+                placeRightOverlays();
+                return {normal, erg, cleared: !map.style.height && !climb.style.top};
+            };
+            const tall = boxes(false);
+            const low = boxes(true);
+            ride.style.height = '';
+            return {zoom, windowed, tall, low, rideWidth: ride.getBoundingClientRect().width};
+        }""")
+        self.assertTrue(layout["zoom"])
+        self.assertEqual(layout["windowed"]["map"], "110px")
+        self.assertEqual(layout["windowed"]["climb"], "110px")
+        self.assertLess(float(layout["windowed"]["width"].rstrip("px")), layout["rideWidth"] * 0.28)
+
+        def clear(name, mode):
+            boxes = layout[name][mode]
+            self.assertGreater(boxes["map"]["height"], 150 if name == "tall" else 100, name + " " + mode)
+            self.assertGreaterEqual(boxes["climb"]["top"], boxes["map"]["bottom"] - 1, name + " " + mode)
+            self.assertLessEqual(boxes["climb"]["bottom"], boxes["pwr"]["top"] + 1, name + " " + mode)
+            self.assertGreater(boxes["map"]["width"], layout["rideWidth"] * 0.30, name + " " + mode)
+
+        for name in ("tall", "low"):
+            for mode in ("normal", "erg"):
+                clear(name, mode)
+            self.assertTrue(layout[name]["cleared"])
+
     def test_draft_stops_above_three_percent(self):
         self.page.goto(self.base + "/game")
         draft = self.page.evaluate("""() => {
