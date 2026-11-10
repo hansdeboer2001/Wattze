@@ -15,7 +15,7 @@ hieronder per onderdeel bijgehouden.
 - Punt 12: verouderde pauze-/hervatmelding na beeindigen hersteld en met vier extra Edge-tests gecontroleerd; praktijkcontrole staat nog open.
 - Punt 4: lokale NPC's staan vóór en achter de speler, in een middenstand tussen de oude en de te drukke verdeling. Serververkeer is ongewijzigd. Praktijkcontrole staat nog open.
 - Punt 6: voorgrondgebouwen zijn 45% groter; achtergrond is ongewijzigd. Praktijkcontrole in venster en fullscreen staat nog open.
-- Verificatie: alle 147 tests slagen, inclusief Edge.
+- Verificatie: alle 148 tests slagen, inclusief Edge.
 - Punt 11: menuknop linksonder toegevoegd; Stop-knop verwijderd. Pauze zet de scène stil zonder eindkaart. Praktijkcontrole staat nog open.
 - Punt 2: kruisje op de telefoonafstandsbediening verborgen bij aanraakbediening, ook liggend. Een smal desktopvenster behoudt de link.
 

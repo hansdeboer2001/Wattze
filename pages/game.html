@@ -2463,7 +2463,8 @@ function komEta(sg){
   let v=Math.max(0.05,spd),x=dist,eta=0;
   const dt=0.25,draftUntil=dist+(drafting>0.05?12:0);
   while(x<sg.end-0.2&&eta<7200){
-    const tgt=targetSpeed(p,gradeRide(x,sg.end),x<draftUntil?drafting:0,mass,1,crrAt(x));
+    const gg=gradeRide(x,sg.end);
+    const tgt=targetSpeed(p,gg,gg<=3&&x<draftUntil?drafting:0,mass,1,crrAt(x));
     v+=(tgt-v)*Math.min(1,dt*0.8);
     v=Math.max(0.05,v);
     const ds=Math.min(v*dt,sg.end-x);
@@ -3852,7 +3853,8 @@ function stepPhysics(dt){
     if(!pwrWin.length||simT-pwrWin[pwrWin.length-1].t>=0.1)pwrWin.push({t:simT,p:power});
     while(pwrWin.length&&simT-pwrWin[0].t>5)pwrWin.shift();
     const tau=0.5;
-    drafting+=(draftRaw-drafting)*(1-Math.exp(-Math.min(0.1,dt)/tau));
+    if(g>3){draftRaw=0;drafting=0;}
+    else drafting+=(draftRaw-drafting)*(1-Math.exp(-Math.min(0.1,dt)/tau));
     const superOn=g<-4&&spd*3.6>=45&&(cadence||0)<20;
     superK+=((superOn?1:0)-superK)*(1-Math.exp(-Math.min(0.1,dt)/tau));
     const tgt=targetSpeed(power,g,drafting,mass,1-0.15*superK,crrAt(dist));

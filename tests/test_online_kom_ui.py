@@ -500,6 +500,34 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         for key in ("village", "gaps", "farm", "barn", "mill", "row", "single", "alpsFarm", "alpsChalet", "lamps", "back", "chapel", "inside", "outside"):
             self.assertTrue(scenery[key], key)
 
+    def test_draft_stops_above_three_percent(self):
+        self.page.goto(self.base + "/game")
+        draft = self.page.evaluate("""() => {
+            startRide();
+            peloton = []; pelotonOn = []; oncomers = []; multiOthers = [];
+            const rider = riders.find(r => !r.fromBehind) || riders[0];
+            riders = [rider];
+            spd = 5; power = 200;
+            const orig = gradeAt;
+            const sample = (grade) => {
+                gradeAt = () => grade;
+                rider.wx = dist + 2;
+                rider.spd = 8;
+                stepPhysics(0.16);
+                return drafting;
+            };
+            const atThree = sample(3);
+            const steep = sample(3.1);
+            gradeAt = () => 1;
+            let easy = 0;
+            for (let i = 0; i < 12; i++) easy = sample(1);
+            gradeAt = orig;
+            return {atThree, steep, easy};
+        }""")
+        self.assertGreater(draft["atThree"], 0)
+        self.assertEqual(draft["steep"], 0)
+        self.assertGreater(draft["easy"], 0.15)
+
     def test_ride_menu_pauses_scene_and_saves_route_feel_without_ending(self):
         settings, pauses = [], []
         self.page.route("**/settings", lambda route: settings.append(route.request.post_data_json) or route.fulfill(json={"ok": True}))
