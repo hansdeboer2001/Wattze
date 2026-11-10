@@ -368,7 +368,7 @@ let sumP=0,cntP=0,maxP=0,sumHr=0,cntHr=0,sumCad=0,cntCad=0,route='free',sumP4=0,
 let nowT=0,dayPhase=0;
 let ergWorkout=null,ergOn=false,ergT=0,ergLastPost=-1,ergLastPostT=0,ergDone=false,ergScale=1;
 let segs=[],curSeg=-1,segT0=0,segSim0=0,segSumP=0,segCnt=0,ghostOn=true,segBest=null,segOnlinePaused=false;
-let VGEAR_MAX=__VGEAR_MAX__,VGEAR_STEP=11/Math.max(1,VGEAR_MAX-1);
+let VGEAR_MAX=__VGEAR_MAX__,VGEAR_STEP=16/Math.max(1,VGEAR_MAX-1);
 let vgear=__VGEAR__;
 let CLICK={want:true,connected:false,battery:null,err:''};
 let course={pts:[],step:25,total:20000,km:20,seed:7,gain:0,minE:0,maxE:0,name:'Vrije route',segs:null,blurb:null};
@@ -376,7 +376,7 @@ const es=new EventSource('/events');
 es.onmessage=e=>{const d=JSON.parse(e.data);power=simOn?simW():d.power;cadence=simOn?simC():d.cadence;hr=d.hr||0;
   if(typeof d.gear==='number'&&d.gear!==vgear){vgear=d.gear;lastPostG=999;lastPostT=0;gearLabel();}
   if(typeof d.gear_max==='number'&&d.gear_max!==VGEAR_MAX){
-    VGEAR_MAX=d.gear_max;VGEAR_STEP=11/Math.max(1,VGEAR_MAX-1);
+    VGEAR_MAX=d.gear_max;VGEAR_STEP=16/Math.max(1,VGEAR_MAX-1);
     if(vgear>VGEAR_MAX)vgear=VGEAR_MAX;
     lastPostG=999;lastPostT=0;gearLabel();
   }

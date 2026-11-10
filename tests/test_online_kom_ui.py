@@ -363,6 +363,43 @@ class OnlineKOMBrowserTests(unittest.TestCase):
                                  bounds["width"])
         self.assertFalse(self.page.evaluate("simOn"))
 
+    def test_gear_range_and_route_feel_on_load_and_live_gear_count_changes(self):
+        self.page.goto(self.base + "/game")
+        results = self.page.evaluate("""() => {
+            const originalFetch = window.fetch, results = [];
+            let posted;
+            window.fetch = (url, options) => {
+                if(url === '/grade') {
+                    posted = JSON.parse(options.body);
+                    return Promise.resolve(new Response('{}'));
+                }
+                return originalFetch(url, options);
+            };
+            try {
+                for(const count of [VGEAR_MAX, 16, 24]) {
+                    if(count !== VGEAR_MAX)
+                        es.onmessage({data:JSON.stringify({power:0,cadence:0,gear:1,gear_max:count})});
+                    for(const feel of [0, 100]) {
+                        SETTINGS.route_feel = feel;
+                        for(const terrain of [-5, 0, 5]) {
+                            for(const selected of [1, count]) {
+                                vgear = selected; lastPostT = -10; lastPostG = -999;
+                                postGrade(terrain);
+                                results.push({count, feel, terrain, selected, grade:posted.grade});
+                            }
+                        }
+                    }
+                }
+            } finally { window.fetch = originalFetch; }
+            return results;
+        }""")
+        self.assertEqual({row["count"] for row in results}, {12, 16, 24})
+        for row in results:
+            with self.subTest(**row):
+                offset = -8 if row["selected"] == 1 else 8
+                expected = max(-12, min(18, row["terrain"] * row["feel"] / 100 + offset))
+                self.assertAlmostEqual(row["grade"], expected)
+
     def test_trainer_diagnostic_log_controls_and_browser_calculation(self):
         status = {"active": False, "error": "", "bytes": 0}
         commands, grades = [], []

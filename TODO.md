@@ -8,7 +8,8 @@ hieronder per onderdeel bijgehouden.
 
 - Punt 9: verstuurde trainerhelling en bevestigingsstatus toegevoegd.
 - Punt 7: tijdelijke diagnoselog toegevoegd; normale SIM-werking bij 0% routegevoel in de praktijk bevestigd.
-- Verificatie: alle 101 tests slagen, inclusief de beschikbare Edge-browsertests.
+- Groter versnellingsbereik (-8% tot +8%): geimplementeerd; rijgevoel nog controleren.
+- Verificatie: alle 102 tests slagen, inclusief de beschikbare Edge-browsertests.
 
 ## 1. Ontbrekende RPM
 
@@ -197,7 +198,7 @@ Bestand: `WattzeRitten/trainer_diagnostics.jsonl`. Standaard uit; maximaal
 30 minuten of 5 MB. Een nieuwe start vervangt het vorige log.
 Zie `docs/trainer_diagnostics.md` voor de werkwijze.
 Schrijven gebeurt in een achtergrondthread met begrensde wachtrij; een volle
-wachtrij of schrijffout stopt alleen het log. Alle 101 geautomatiseerde tests
+wachtrij of schrijffout stopt alleen het log. Alle 102 geautomatiseerde tests
 slagen, inclusief start/stop in Edge en blokkering/foutgevallen bij het schrijven.
 
 ### Praktijkuitkomst
@@ -221,6 +222,17 @@ geen gekalibreerde weerstandsmeting.
 Conclusie: de normale SIM-aansturing en virtuele versnelling werken ook bij
 0% routegevoel. Er is geen aangetoonde aanleiding om de formule te wijzigen.
 De afzonderlijke foutpaden hierboven zijn hiermee niet praktijkgetest.
+
+### Groter versnellingsbereik
+
+Na de proefritten is de versnellingsbijdrage op verzoek vergroot van -5,50%
+tot +5,50% naar -8% tot +8%. Het ingestelde aantal versnellingen blijft gelijk.
+Bij 16 versnellingen is de stap nu circa 1,07 procentpunt; bij een routehelling
+van -5% en 100% routegevoel vraagt versnelling 16 nu +3% aan in plaats van
++0,50%. De bestaande HTTP- en BLE-begrenzing blijft ongewijzigd.
+Het bereik geldt zowel bij het laden als bij een live wijziging van het aantal
+versnellingen. De browsertest controleert 0% en 100% routegevoel bij 12, 16 en
+24 versnellingen. Het rijgevoel met het grotere bereik moet nog worden getest.
 
 Bron: `pages/game.html:794-831`, `pages/game.html:3730-3740`.
 
@@ -335,6 +347,6 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## Aanbevolen volgorde
 
-1. Het grotere versnellingsbereik uitvoeren en de RPM-ontvangst herstellen (punt 1).
+1. De RPM-ontvangst herstellen (punt 1).
 2. De menuknop en overige openstaande visuele punten uitvoeren.
 3. De per onderdeel genoemde praktijkcontroles en foutpaden afronden.
