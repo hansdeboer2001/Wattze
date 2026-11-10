@@ -9,13 +9,16 @@ hieronder per onderdeel bijgehouden.
 - Punt 9: verstuurde trainerhelling en bevestigingsstatus toegevoegd.
 - Punt 7: tijdelijke diagnoselog toegevoegd; normale SIM-werking bij 0% routegevoel in de praktijk bevestigd.
 - Groter versnellingsbereik (-8% tot +8%): geimplementeerd; rijgevoel nog controleren.
-- Verificatie: alle 102 tests slagen, inclusief de beschikbare Edge-browsertests.
+- Punt 1: cadansontvangst hersteld; gebruiker meldt werkende cadans. Stoppen en opnieuw verbinden nog controleren.
+- Verificatie: alle 114 tests slagen, inclusief de beschikbare Edge-browsertests.
 
 ## 1. Ontbrekende RPM
 
-- [ ] Onderzoeken welke cadansgegevens de trainer levert en de verwerking herstellen.
+- [x] De FTMS- en Cycling Power-ontvangst controleren en de gevonden parserproblemen herstellen.
+- [x] Cadans tijdens fietsen werkt volgens de terugmelding van de gebruiker na de wijziging.
+- [ ] Nog apart controleren dat RPM bij stoppen nul wordt en na opnieuw verbinden goed terugkomt.
 
-### Bevindingen
+### Oorspronkelijke bevindingen
 
 De RPM-weergave en de koppeling met trainergegevens bestaan al. Er zijn wel
 concrete tekortkomingen in de ontvangstcode:
@@ -24,14 +27,42 @@ concrete tekortkomingen in de ontvangstcode:
 - Een pakket zonder cadans zet RPM direct op nul, ook als een eerder pakket wel cadans bevatte.
 - De alternatieve ontvangst via Cycling Power leest alleen vermogen, geen cadans.
 
-### Vervolg
+### Uitgevoerd
 
-Eerst vaststellen welk type gegevens de trainer verstuurt. Daarna de betreffende
-verwerking corrigeren, met onderscheid tussen ontbrekende gegevens en werkelijk
-`0 RPM`. Met ontvangen trainergegevens controleren of de cadans stabiel en juist
-wordt weergegeven.
+De FTMS-parser leest het snelheidsveld alleen als dit volgens bit 0 aanwezig is.
+De lengte van alle aangekondigde velden wordt gecontroleerd; afgebroken
+pakketten worden genegeerd in plaats van als fictieve nulwaarden verwerkt.
+Een ontbrekende cadans of snelheid behoudt de vorige meting. Expliciete nul
+wordt direct overgenomen. Ontbrekend vermogen overschrijft de vorige waarde
+niet en telt niet als een extra nulmeting in gemiddelde of historie.
 
-Bron: `wattze/telemetry.py:29-77`, `wattze/ble_wattze.py:206-218`.
+Cadans vervalt bij vijf seconden zonder nieuwe geldige cadans naar nul, ook
+als er nog vermogensberichten binnenkomen. Deze vervaltijd wordt gecontroleerd
+bij ontvangst, in de BLE-loop en bij het uitlezen van snapshots en `/api`.
+Nieuwe verbindingen en normale teardown wissen de metingen en de crankbasis.
+
+Cycling Power berekent nu RPM uit verschillen in crankomwentelingen en
+eventtijd (1/1024 seconde), met correcte optionele offsets en 16-bits wrap.
+De eerste meting vormt alleen een basis. Duplicaten, onbruikbare tijdverschillen
+en onwaarschijnlijke waarden boven 300 RPM vernieuwen de cadans niet. Na een
+lange onderbreking wordt opnieuw een basis opgebouwd.
+
+### Controle en beperking
+
+Twaalf nieuwe telemetrietests controleren optionele velden, afgebroken pakketten,
+ontbrekend versus nul, vervaltijd, crankberekening, wraps en resets. Alle 114
+tests slagen. De eerdere proefritten bevatten al cadans, maar zijn van voor
+deze ontvangstwijziging. Na de wijziging heeft de gebruiker gemeld dat cadans
+lijkt te werken. Dat bevestigt gebruik tijdens fietsen, maar is geen expliciete
+controle van stoppen met trappen of opnieuw verbinden.
+
+De bronselectie is ongewijzigd: FTMS heeft voorrang; Cycling Power wordt gebruikt
+als FTMS ontbreekt. Een trainer die FTMS zonder cadans levert maar daarnaast
+wel Cycling Power-crankgegevens heeft, vraagt nog een aparte gecombineerde
+ontvangstoplossing als dat in de praktijk nodig blijkt.
+
+Bron: `wattze/telemetry.py`, `wattze/ble_wattze.py`, `wattze/http_handler.py`,
+`tests/test_telemetry.py`.
 
 ## 2. Sluitknop op mobiel
 
@@ -198,7 +229,7 @@ Bestand: `WattzeRitten/trainer_diagnostics.jsonl`. Standaard uit; maximaal
 30 minuten of 5 MB. Een nieuwe start vervangt het vorige log.
 Zie `docs/trainer_diagnostics.md` voor de werkwijze.
 Schrijven gebeurt in een achtergrondthread met begrensde wachtrij; een volle
-wachtrij of schrijffout stopt alleen het log. Alle 102 geautomatiseerde tests
+wachtrij of schrijffout stopt alleen het log. Alle 114 geautomatiseerde tests
 slagen, inclusief start/stop in Edge en blokkering/foutgevallen bij het schrijven.
 
 ### Praktijkuitkomst
@@ -347,6 +378,6 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## Aanbevolen volgorde
 
-1. De RPM-ontvangst herstellen (punt 1).
+1. De ventilatorvertraging uitvoeren (punt 3).
 2. De menuknop en overige openstaande visuele punten uitvoeren.
 3. De per onderdeel genoemde praktijkcontroles en foutpaden afronden.

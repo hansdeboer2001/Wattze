@@ -7,7 +7,8 @@ from bleak import BleakClient, BleakScanner
 
 from wattze.ble_scan import acquire as acquire_scan, release as release_scan, try_acquire as try_acquire_scan
 from wattze.state import *
-from wattze.telemetry import cb_cpm, cb_ftms, dbg, push, snapshot
+from wattze.telemetry import (cb_cpm, cb_ftms, dbg, expire_cadence, push,
+                              reset_trainer_telemetry, snapshot)
 from wattze import trainer_diagnostics
 
 def kickr_match(d, adv):
@@ -237,6 +238,7 @@ async def ble_loop():
                     state["connected"] = True
                     state["kickr_err"] = ""
                 trainer_diagnostics.record("connected")
+                reset_trainer_telemetry()
                 svcs = client.services
                 use_ftms = svcs.get_characteristic(BIKE_DATA) is not None
                 use_cpm = svcs.get_characteristic(CPM) is not None
@@ -384,9 +386,12 @@ async def ble_loop():
                                                     ctrl["last_erg_t"] = now
                                         except Exception as e:
                                             dbg(f"erg-ftms-ERR {type(e).__name__}: {e}")
+                        if expire_cadence():
+                            push(snapshot())
                         trainer_diagnostics.record("sample")
                         await asyncio.sleep(0.2)
                 finally:
+                    reset_trainer_telemetry()
                     with lock:
                         ctrl["sim_command"] = None
                     try:
@@ -405,6 +410,7 @@ async def ble_loop():
             with lock:
                 state["kickr_err"] = f"{type(e).__name__}: {e}"[:120]
         with lock:
+            reset_trainer_telemetry()
             state["connected"] = False
             state.update(power=0, cadence=0, speed=0, kickr_addr="", kickr_name="")
             ctrl["sim_active"] = False

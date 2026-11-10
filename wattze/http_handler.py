@@ -290,6 +290,7 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
         elif self.path == "/api":
             with lock:
+                expire_cadence()
                 snap = dict(state)
                 snap["avg"] = round(ride["sum_p"] / ride["samples"], 1) if ride["samples"] else 0
                 snap["max"] = ride["max_p"]
