@@ -8,6 +8,7 @@ from bleak import BleakClient, BleakScanner
 from wattze.ble_scan import acquire as acquire_scan, release as release_scan, try_acquire as try_acquire_scan
 from wattze.state import *
 from wattze.telemetry import cb_cpm, cb_ftms, dbg, push, snapshot
+from wattze import trainer_diagnostics
 
 def kickr_match(d, adv):
     with lock:
@@ -149,24 +150,28 @@ async def cp_request(client, payload, timeout=5):
     if is_sim:
         with lock:
             ctrl["sim_command"] = {"grade": None, "t": None, "status": "writing"}
+    trainer_diagnostics.record("ftms_write", opcode=payload[0])
     try:
         await client.write_gatt_char(CP_UUID, bytearray(payload), response=True)
-    except Exception:
+    except Exception as exc:
         if is_sim:
             with lock:
                 ctrl["sim_command"] = {"grade": None, "t": None, "status": "write_error"}
+        trainer_diagnostics.record("ftms_write_error", opcode=payload[0], error_type=type(exc).__name__)
         raise
     if is_sim:
         command = {"grade": struct.unpack_from("<h", bytes(payload), 3)[0] / 100.0,
                    "t": time.time(), "status": "pending"}
         with lock:
             ctrl["sim_command"] = command
+    trainer_diagnostics.record("ftms_sent", opcode=payload[0])
     try:
         await asyncio.wait_for(cp_evt.wait(), timeout)
     except asyncio.TimeoutError:
         if is_sim:
             with lock:
                 ctrl["sim_command"] = dict(command, status="timeout")
+        trainer_diagnostics.record("ftms_timeout", opcode=payload[0])
         return None
     if is_sim:
         status = "unconfirmed"
@@ -175,6 +180,8 @@ async def cp_request(client, payload, timeout=5):
         with lock:
             ctrl["sim_command"] = dict(command, status=status,
                                        result=cp_result[1] if cp_result and cp_result[0] == 0x11 else None)
+    trainer_diagnostics.record("ftms_response", opcode=payload[0],
+                               response=list(cp_result) if cp_result else None)
     return cp_result
 
 
@@ -229,6 +236,7 @@ async def ble_loop():
                 with lock:
                     state["connected"] = True
                     state["kickr_err"] = ""
+                trainer_diagnostics.record("connected")
                 svcs = client.services
                 use_ftms = svcs.get_characteristic(BIKE_DATA) is not None
                 use_cpm = svcs.get_characteristic(CPM) is not None
@@ -376,6 +384,7 @@ async def ble_loop():
                                                     ctrl["last_erg_t"] = now
                                         except Exception as e:
                                             dbg(f"erg-ftms-ERR {type(e).__name__}: {e}")
+                        trainer_diagnostics.record("sample")
                         await asyncio.sleep(0.2)
                 finally:
                     with lock:
@@ -402,5 +411,6 @@ async def ble_loop():
             ctrl["last_sent"] = None
             ctrl["sim_command"] = None
             rebind["kickr"] = False
+        trainer_diagnostics.record("disconnected")
         push(snapshot())
         await asyncio.sleep(3)

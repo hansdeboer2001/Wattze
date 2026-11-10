@@ -2,6 +2,7 @@ import time
 
 from wattze.state import *
 from wattze.storage import save_config
+from wattze import trainer_diagnostics
 
 def dbg(msg):
     with lock:
@@ -14,6 +15,8 @@ def set_gear(value=None, delta=0):
         v = max(1, min(gear["max"], v))
         changed = v != gear["v"]
         gear["v"] = v
+        if changed:
+            trainer_diagnostics.record("gear_changed")
     if changed:
         save_config()
         push(snapshot())
@@ -65,6 +68,7 @@ def on_data(power, cad, speed):
         if len(history) > 900:
             del history[:len(history) - 900]
         avg = round(ride["sum_p"] / ride["samples"], 1)
+    trainer_diagnostics.record("sample")
     push(snapshot())
 
 

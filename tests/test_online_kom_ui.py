@@ -363,6 +363,43 @@ class OnlineKOMBrowserTests(unittest.TestCase):
                                  bounds["width"])
         self.assertFalse(self.page.evaluate("simOn"))
 
+    def test_trainer_diagnostic_log_controls_and_browser_calculation(self):
+        status = {"active": False, "error": "", "bytes": 0}
+        commands, grades = [], []
+        self.page.route("**/api", lambda route: route.fulfill(json={"trainer_diagnostics": status}))
+
+        def diagnostic_request(route):
+            cmd = route.request.post_data_json["cmd"]
+            commands.append(cmd)
+            status["active"] = cmd == "start"
+            route.fulfill(json={"ok": True, **status})
+
+        def grade_request(route):
+            grades.append(route.request.post_data_json)
+            route.fulfill(json={"ok": True})
+
+        self.page.route("**/trainer-diagnostics", diagnostic_request)
+        self.page.route("**/grade", grade_request)
+        self.page.goto(self.base + "/game?sim=1")
+        self.page.evaluate("document.getElementById('overlay').style.display='none'")
+        self.page.locator("#btnSim").click()
+        self.page.locator("#trainerDiagToggle").click()
+        self.page.wait_for_function("trainerDiagActive && !trainerDiagBusy")
+        self.assertEqual(self.page.locator("#trainerDiagToggle").text_content(), "Stop diagnoselog")
+        self.assertIn("Log actief", self.page.locator("#trainerDiagStatus").text_content())
+        self.page.evaluate("SETTINGS.route_feel=0; lastPostT=-10; lastPostG=-999; postGrade(4)")
+        self.page.wait_for_timeout(100)
+        self.assertEqual(grades[-1]["diagnostic"]["route_grade"], 4)
+        self.assertEqual(grades[-1]["diagnostic"]["route_feel"], 0)
+        self.assertEqual(grades[-1]["grade"], grades[-1]["diagnostic"]["gear_offset"])
+        self.page.locator("#trainerDiagToggle").click()
+        self.page.wait_for_function("!trainerDiagActive && !trainerDiagBusy")
+        self.page.evaluate("lastPostT=-10; lastPostG=-999; postGrade(4)")
+        self.page.wait_for_timeout(100)
+        self.assertNotIn("diagnostic", grades[-1])
+        self.assertEqual(commands, ["start", "stop"])
+        self.assertFalse(self.page.evaluate("simOn"))
+
     def test_desktop_and_mobile_layout(self):
         self.register()
         for width, height in ((1440, 1000), (390, 844)):

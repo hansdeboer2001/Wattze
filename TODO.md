@@ -7,7 +7,8 @@ hieronder per onderdeel bijgehouden.
 ## Actuele status
 
 - Punt 9: verstuurde trainerhelling en bevestigingsstatus toegevoegd.
-- Verificatie: alle 74 tests slagen, inclusief de beschikbare Edge-browsertests.
+- Punt 7: tijdelijke diagnoselog toegevoegd; normale SIM-werking bij 0% routegevoel in de praktijk bevestigd.
+- Verificatie: alle 101 tests slagen, inclusief de beschikbare Edge-browsertests.
 
 ## 1. Ontbrekende RPM
 
@@ -159,7 +160,8 @@ Bron: `pages/game.html:1655-1700`, `pages/game.html:1888-1893`.
 
 ## 7. Schakelen bij 0% routegevoel
 
-- [ ] Achterhalen waarom schakelen bij 0% routegevoel geen merkbaar effect heeft en de daadwerkelijke fout herstellen.
+- [x] Schakelen bij 0% routegevoel onderzoeken: werking tijdens een normale SIM-rit met de echte trainer bevestigd; geen formulewijziging nodig.
+- [ ] De afzonderlijk gevonden foutafhandeling bij mislukte hellingsaanvragen en niet-passende FTMS-responsen onderzoeken.
 
 ### Bevindingen
 
@@ -184,6 +186,41 @@ Met de trainerhelling zichtbaar controleren of schakelen het commando verandert,
 of dat commando wordt bevestigd en of de trainer erop reageert. SIM/ERG-modus,
 actieve/gepauzeerde rit, verbindingsstatus en mislukte verzoeken meenemen.
 Niet zonder aangetoonde noodzaak de routegevoel-formule veranderen.
+
+### Diagnosevoorziening
+
+Een tijdelijke, expliciet in te schakelen diagnoselog is toegevoegd aan het
+Sim-paneel van `/game?sim=1`. Deze registreert schakelacties, door de game
+gebruikte rekenwaarden, ontvangen hellingsaanvragen, FTMS-verzendingen en
+responsen, verbindingswisselingen en eenmaal per seconde telemetrie.
+Bestand: `WattzeRitten/trainer_diagnostics.jsonl`. Standaard uit; maximaal
+30 minuten of 5 MB. Een nieuwe start vervangt het vorige log.
+Zie `docs/trainer_diagnostics.md` voor de werkwijze.
+Schrijven gebeurt in een achtergrondthread met begrensde wachtrij; een volle
+wachtrij of schrijffout stopt alleen het log. Alle 101 geautomatiseerde tests
+slagen, inclusief start/stop in Edge en blokkering/foutgevallen bij het schrijven.
+
+### Praktijkuitkomst
+
+Twee proefritten bij 0% routegevoel zijn geanalyseerd. In de eerste proefrit
+(versnelling 1-9 van 16) bleef het commando grotendeels negatief (-5,50% tot
++0,37%). De rijder voelde toen nauwelijks verschil. Een minimale fysieke
+trainerweerstand bij negatieve helling is een plausibele verklaring, maar is
+niet afzonderlijk gemeten.
+
+De tweede opname duurde circa 123 seconden en bevatte 15 nieuwe SIM-commando's,
+allemaal met de passende succesrespons `[17, 1]`, zonder geregistreerde
+timeouts, schrijffouten of verbindingsverlies. Zowel de backend als de
+gamepagina gebruikte 0% routegevoel. Tijdens opschakelen liep de verstuurde
+helling op tot +5,50% (versnelling 16); bij terugschakelen daalde deze weer tot
+-0,37% (versnelling 8). De rijder bevestigde duidelijke weerstandsverandering.
+Het vermogen steeg tijdens opschakelen van ongeveer 80 W naar ruim 200 W;
+de cadans bleef niet exact gelijk, dus dit is ondersteunende observatie,
+geen gekalibreerde weerstandsmeting.
+
+Conclusie: de normale SIM-aansturing en virtuele versnelling werken ook bij
+0% routegevoel. Er is geen aangetoonde aanleiding om de formule te wijzigen.
+De afzonderlijke foutpaden hierboven zijn hiermee niet praktijkgetest.
 
 Bron: `pages/game.html:794-831`, `pages/game.html:3730-3740`.
 
@@ -216,7 +253,7 @@ Bron: `pages/game.html:3344-3457`, `pages/blokjes.html:482-544`.
 ## 9. Verstuurde trainerhelling tonen
 
 - [x] In de ontwikkelweergave het daadwerkelijk naar de trainer verstuurde hellingspercentage tonen, zonder de aansturing te veranderen.
-- [x] De verstuurde waarden en trainerbevestigingen tijdens echte proefritten controleren.
+- [x] De verstuurde waarden en trainerbevestigingen tijdens echte ritten via het diagnoselog controleren.
 
 ### Bevindingen
 
@@ -256,7 +293,7 @@ bevestiging, foutgevallen en resets bij ERG/disconnect/reconnect. De browsertest
 controleert het paneel zonder ingeschakelde simulatie, statussen en desktop- en
 mobiele breedte in Edge. De geautomatiseerde tests slagen. De daadwerkelijke
 commando's en passende trainerbevestigingen zijn daarnaast met echte proefritten
-gecontroleerd. De praktijkuitkomst wordt bij punt 7 vastgelegd.
+gecontroleerd; zie de praktijkuitkomst bij punt 7.
 
 Bij de tests is ook bestaand gedrag bevestigd: de aansturing zelf controleert
 bij een succesvolle FTMS-respons nog niet de bijbehorende opcode. Dit is niet
@@ -298,6 +335,6 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## Aanbevolen volgorde
 
-1. RPM-ontvangst controleren (punt 1) en de schakelwerking diagnosticeren (punt 7).
+1. Het grotere versnellingsbereik uitvoeren en de RPM-ontvangst herstellen (punt 1).
 2. De menuknop en overige openstaande visuele punten uitvoeren.
 3. De per onderdeel genoemde praktijkcontroles en foutpaden afronden.

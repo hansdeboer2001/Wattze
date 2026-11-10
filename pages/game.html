@@ -27,6 +27,7 @@ canvas{width:100%;background:#0b0e14;border-radius:10px;display:block}
 #btnSim.on{background:#c77700;border-color:#ffd24d}
 #simPanel{display:none;position:absolute;top:60px;right:16px;z-index:9;background:rgba(16,20,28,.94);border:2px solid #f4f6f8;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;align-items:center;gap:6px;flex-wrap:wrap;max-width:calc(100% - 32px);box-sizing:border-box}
 #simTrainerGrade{flex-basis:100%;font-size:13px;line-height:1.5}
+#trainerDiagControls{flex-basis:100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
 #simPanel input{width:70px;font-size:16px;padding:4px 6px;background:#0b0e14;color:#fff;border:1px solid #555;border-radius:6px;text-align:right}
 #simPanel button{margin:0;padding:6px 10px;font-size:14px}
 #edgeRiders{position:absolute;inset:0;z-index:7;pointer-events:none}
@@ -201,7 +202,7 @@ a{color:#4da3ff;font-size:13px}
 <div id="edgeRiders"></div>
 <button type="button" id="btnStop">Stop</button>
 <button type="button" id="btnSim" title="Simuleer een vast vermogen in plaats van de trainer">Sim</button>
-<div id="simPanel"><button type="button" class="ghost" id="simDown">&minus;</button><input id="simW" type="number" min="0" max="2000" step="10" value="200"><span>W</span><button type="button" class="ghost" id="simUp">+</button><button type="button" class="ghost" id="simCadDown">&minus;</button><input id="simCad" type="number" min="0" max="200" step="5" value="90"><span>rpm</span><button type="button" class="ghost" id="simCadUp">+</button><button type="button" id="simToggle">Aan</button><div id="simTrainerGrade" title="Laatst verstuurde SIM-commando, geen gemeten fysieke helling.">Trainer-SIM: - (nog geen gegevens)</div></div>
+<div id="simPanel"><button type="button" class="ghost" id="simDown">&minus;</button><input id="simW" type="number" min="0" max="2000" step="10" value="200"><span>W</span><button type="button" class="ghost" id="simUp">+</button><button type="button" class="ghost" id="simCadDown">&minus;</button><input id="simCad" type="number" min="0" max="200" step="5" value="90"><span>rpm</span><button type="button" class="ghost" id="simCadUp">+</button><button type="button" id="simToggle">Aan</button><div id="simTrainerGrade" title="Laatst verstuurde SIM-commando, geen gemeten fysieke helling.">Trainer-SIM: - (nog geen gegevens)</div><div id="trainerDiagControls"><button type="button" id="trainerDiagToggle" title="Start vervangt het vorige diagnoselog; stopt automatisch na 30 minuten of 5 MB.">Start diagnoselog</button><span id="trainerDiagStatus">Tijdelijk log, maximaal 30 minuten / 5 MB</span></div></div>
 <button type="button" id="btnFs" title="Volledig scherm">&#x26F6;</button>
 <div id="rideStrip"><span class="rs"><span class="ic">&#9201;</span><b id="rTime">0:00</b><span class="l">TIJD</span></span><span class="rs"><span class="ic">&#9873;</span><b id="rDist">0.00</b><span class="l">KM</span></span><span class="rs"><span class="ic">&#9650;</span><b id="rClimb">0</b><span class="l">HM</span></span><span id="rExtra" style="font-size:13px;font-weight:600;color:#ffd24d"></span></div>
 <div id="segBar"><span id="segBarName">KOM</span><div id="segBarTrack"><div id="segBarFill"></div></div><span id="segBarTime">0:00</span></div>
@@ -392,6 +393,7 @@ window.addEventListener('pagehide',()=>{
 setInterval(async()=>{
   try{const d=await(await fetch('/api')).json();
     updateSimTrainerGrade(d);
+    updateTrainerDiagnostics(d.trainer_diagnostics||{});
     if(!simOn){power=d.power;cadence=d.cadence;hr=d.hr||0;}
     CLICK=d.click||CLICK;clickLabel();
     const zf=document.getElementById('zFanN');
@@ -799,7 +801,10 @@ function postGrade(g){
   const sg=Math.max(-12,Math.min(18,g*feel+(vgear-(VGEAR_MAX+1)/2)*VGEAR_STEP));
   if(Math.abs(sg-lastPostG)>=0.5&&now-lastPostT>=1.0){
     lastPostG=sg;lastPostT=now;
-    fetch('/grade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grade:sg,ele:elev(dist),dist:Math.max(0,dist),spd:spd*3.6})});
+    const body={grade:sg,ele:elev(dist),dist:Math.max(0,dist),spd:spd*3.6};
+    if(trainerDiagActive)body.diagnostic={route_grade:g,route_feel:feel*100,gear:vgear,gear_max:VGEAR_MAX,
+      gear_offset:(vgear-(VGEAR_MAX+1)/2)*VGEAR_STEP};
+    fetch('/grade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   }
 }
 function gearLabel(){
@@ -3251,6 +3256,28 @@ function multiTick(){multiInput();}
 document.getElementById('btnStop').onclick=()=>{pauseRide();};
 // Sim: vast vermogen in plaats van de trainer (alleen voor de game; de opname houdt het gemeten vermogen).
 let simOn=false;
+let trainerDiagActive=false,trainerDiagBusy=false;
+function updateTrainerDiagnostics(d){
+  trainerDiagActive=!!d.active;
+  const b=document.getElementById('trainerDiagToggle');
+  b.textContent=trainerDiagActive?'Stop diagnoselog':'Start diagnoselog';
+  b.disabled=trainerDiagBusy;
+  document.getElementById('trainerDiagStatus').textContent=d.error||
+    (trainerDiagActive?'Log actief: '+Math.ceil((d.bytes||0)/1024)+' KB':'Log uit. Start vervangt het vorige log.');
+}
+document.getElementById('trainerDiagToggle').onclick=async()=>{
+  if(trainerDiagBusy)return;
+  trainerDiagBusy=true;
+  document.getElementById('trainerDiagToggle').disabled=true;
+  try{
+    const response=await fetch('/trainer-diagnostics',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cmd:trainerDiagActive?'stop':'start'})});
+    const d=await response.json();
+    if(!response.ok||typeof d.active!=='boolean')throw new Error('Diagnoselog niet bereikbaar');
+    updateTrainerDiagnostics(d);
+  }catch(e){document.getElementById('trainerDiagStatus').textContent='Diagnoselog niet bereikbaar; controleer de verbinding.';}
+  finally{trainerDiagBusy=false;document.getElementById('trainerDiagToggle').disabled=false;}
+};
 function updateSimTrainerGrade(data){
   const c=data&&data.ctrl||{}, cmd=c.sim_command;
   let text='- (nog geen gegevens)';

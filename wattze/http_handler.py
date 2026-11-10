@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 from wattze.ble_wattze import scan_devices, scan_devices_cached
-from wattze import strava, online_kom
+from wattze import strava, online_kom, trainer_diagnostics
 from wattze.fan import fan_cmd
 from wattze.pages import *
 from wattze.rides import *
@@ -295,6 +295,7 @@ class Handler(BaseHTTPRequestHandler):
                 snap["max"] = ride["max_p"]
                 snap["hist"] = [p for _, p in history[-180:]]
                 snap["ctrl"] = dict(ctrl)
+                snap["trainer_diagnostics"] = trainer_diagnostics.status()
                 snap["gear"] = gear["v"]
                 snap["click"] = {k: click[k] for k in ("want", "connected", "device", "battery", "err", "addr")}
                 now2 = time.time()
@@ -354,6 +355,12 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(n) or b"{}")
         except Exception:
             return self._json({"ok": False, "error": "bad json"}, 400)
+        if self.path == "/trainer-diagnostics":
+            if not isinstance(body, dict) or body.get("cmd") not in ("start", "stop"):
+                return self._json({"ok": False, "error": "cmd?"}, 400)
+            result = (trainer_diagnostics.start() if body["cmd"] == "start"
+                      else trainer_diagnostics.stop())
+            return self._json({"ok": not bool(result["error"]), **result})
         if self.path == "/shutdown":
             threading.Thread(target=_shutdown_app, daemon=True).start()
             return self._json({"ok": True, "bye": True})
@@ -373,6 +380,7 @@ class Handler(BaseHTTPRequestHandler):
                     ctrl["want_erg"] = False
                 else:
                     return self._json({"ok": False, "error": "cmd?"}, 400)
+                trainer_diagnostics.record("control", command=cmd)
             return self._json({"ok": True, "want_sim": ctrl["want_sim"],
                                "want_erg": ctrl["want_erg"]})
         if self.path == "/gear":
@@ -413,6 +421,7 @@ class Handler(BaseHTTPRequestHandler):
                     rec["game_dist"] = float(body["dist"])
                 if isinstance(body.get("spd"), (int, float)):
                     rec["game_spd"] = float(body["spd"])
+                trainer_diagnostics.record("grade_requested", source=trainer_diagnostics.grade_source(body))
             return self._json({"ok": True, "target_grade": g})
         if self.path == "/progress/exclusions":
             files = body.get("files")
