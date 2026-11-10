@@ -6,13 +6,15 @@ hieronder per onderdeel bijgehouden.
 
 ## Actuele status
 
-- Punt 9: verstuurde trainerhelling en bevestigingsstatus toegevoegd.
-- Punt 7: tijdelijke diagnoselog toegevoegd; normale SIM-werking bij 0% routegevoel in de praktijk bevestigd.
-- Groter versnellingsbereik (-8% tot +8%): geimplementeerd; rijgevoel nog controleren.
-- Punt 1: cadansontvangst hersteld; gebruiker meldt werkende cadans. Stoppen en opnieuw verbinden nog controleren.
-- Punt 3: vertraagd verbergen van de ventilatorweergave toegevoegd; fysieke praktijkcontrole staat nog open.
-- Punt 5: alleen Windows-pc wakker houden tijdens rit en pauze toegevoegd; praktijkcontrole staat nog open.
-- Verificatie: alle 139 tests slagen, inclusief de beschikbare Edge-browsertests.
+- Punt 9: trainerhellingweergave en praktijkcontrole van verstuurde commando's afgerond.
+- Punt 7: normale werking bij 0% routegevoel bevestigd; afzonderlijke foutafhandeling blijft open.
+- Groter versnellingsbereik (-8% tot +8%): geimplementeerd en automatisch getest; rijgevoel nog controleren.
+- Punt 1: ontvangstcode hersteld en automatisch getest; gebruiker meldt dat cadans werkt. Stoppen met trappen en opnieuw verbinden nog apart controleren.
+- Punt 3: tien seconden vertraagd verbergen op beide schermen geimplementeerd en automatisch getest; fysieke ventilatorcontrole staat nog open.
+- Punt 5: alleen de Windows-pc wakker houden tijdens rit en pauze geimplementeerd; praktijkcontrole en eventuele klassieke screensaver blijven open. Telefoon valt buiten scope.
+- Punt 12: verouderde pauze-/hervatmelding na beeindigen hersteld en met vier extra Edge-tests gecontroleerd; praktijkcontrole staat nog open.
+- Verificatie: alle 143 tests slagen, inclusief Edge, 12 telemetrietests, 13 ventilatortests en 11 schermwakkerhoudingstests.
+- Volgende implementatiepunt: punt 11, menuknop voor pauzeren en routegevoel tijdens de rit.
 
 ## 1. Ontbrekende RPM
 
@@ -52,7 +54,7 @@ lange onderbreking wordt opnieuw een basis opgebouwd.
 ### Controle en beperking
 
 Twaalf nieuwe telemetrietests controleren optionele velden, afgebroken pakketten,
-ontbrekend versus nul, vervaltijd, crankberekening, wraps en resets. Alle 139
+ontbrekend versus nul, vervaltijd, crankberekening, wraps en resets. Alle 143
 tests slagen. De eerdere proefritten bevatten al cadans, maar zijn van voor
 deze ontvangstwijziging. Na de wijziging heeft de gebruiker gemeld dat cadans
 lijkt te werken. Dat bevestigt gebruik tijdens fietsen, maar is geen expliciete
@@ -123,7 +125,7 @@ terwijl de ESP de fysieke ventilator intussen heeft uitgezet.
 Dertien backendtests controleren onder meer 9,999 versus 10 seconden, herhaalde
 fouten, herstel, cachegedrag, opnieuw versturen, uitschakelen en uitdraaien.
 Een Edge-browsertest controleert de zichtbaarheid en herstelstatus op zowel
-het ritscherm als de telefoonbediening. Alle 139 tests slagen. De ESP-firmware
+het ritscherm als de telefoonbediening. Alle 143 tests slagen. De ESP-firmware
 en de veiligheidsuitschakeling zijn niet gewijzigd. Een echte netwerkonderbreking
 met de fysieke ventilator is nog niet getest.
 
@@ -202,7 +204,7 @@ screensaverinstellingen gewijzigd; handmatig vergrendelen of slapen blijft mogel
 
 Elf tests met een gemockte Windows-API controleren ritstart, pauze, hervatten,
 ritstop, thread-eigenaarschap, vrijgeven, herhaalde fouten en niet-Windows gedrag.
-Alle 139 tests slagen. Echte automatische schermuitschakeling en slaapstand zijn
+Alle 143 tests slagen. Echte automatische schermuitschakeling en slaapstand zijn
 niet afgewacht; de praktijkcontrole staat nog open.
 
 `SetThreadExecutionState` voorkomt automatische schermuitschakeling en slaapstand,
@@ -276,7 +278,7 @@ Bestand: `WattzeRitten/trainer_diagnostics.jsonl`. Standaard uit; maximaal
 30 minuten of 5 MB. Een nieuwe start vervangt het vorige log.
 Zie `docs/trainer_diagnostics.md` voor de werkwijze.
 Schrijven gebeurt in een achtergrondthread met begrensde wachtrij; een volle
-wachtrij of schrijffout stopt alleen het log. Alle 139 geautomatiseerde tests
+wachtrij of schrijffout stopt alleen het log. Alle 143 geautomatiseerde tests
 slagen, inclusief start/stop in Edge en blokkering/foutgevallen bij het schrijven.
 
 ### Praktijkuitkomst
@@ -421,10 +423,44 @@ Bron: `pages/game.html:39-67`, `pages/game.html:98`.
 
 ## 12. Spel hervatten na beeindigen
 
-- [ ] Controleren waarom 'Spel hervatten' zichtbaar blijft na het beeindigen van het spel.
+- [x] De verouderde pauze-/hervatmelding na beeindigen herstellen en automatisch testen.
+- [ ] Tijdens een echte rit Stop -> Beeindigen controleren; hervatten mag daarna niet meer worden aangeboden.
+
+### Bevindingen en herstel
+
+Er is geen opgeslagen lokale hervatvlag gevonden en de exacte tekst 'Spel
+hervatten' komt niet voor in de huidige pagina. Wel gevonden: de knop
+'Beeindigen' op de pauzesamenvatting verborg de hervatknoppen, maar liet
+'Rit gepauzeerd' en 'Je kunt de rit hervatten.' staan. Alleen de opname werd
+gestopt; de bestaande eindafhandeling voor titel, melding en samenvatting
+werd overgeslagen.
+
+De knop gebruikt nu `finishRide(false)`, net als de gewone ritbeeindiging.
+Daarmee verdwijnen de pauzestatus en hervatmogelijkheid en verschijnt de
+definitieve samenvatting. De laatste pauzeduur wordt eerst uit de verstreken
+rittijd gehaald, zodat wachten in het pauzescherm niet wordt opgeteld bij de
+eindtijd of het screenshot. De opname wordt maar eenmaal gestopt.
+
+### Controle en afbakening
+
+Vier nieuwe Edge-tests controleren pauzeren en daarna beeindigen, uitsluiting
+van tien minuten pauzetijd, een zeer korte rit zonder opgeslagen opname,
+echt hervatten en de gewone finish. Na opslaan of nogmaals klikken op de
+verborgen knoppen keert de hervatstatus niet terug. Alle 143 tests slagen.
+
+Dit herstel betreft de normale pauze-/eindknop. Browser-terugnavigatie via
+back/forward-cache, meerdere gelijktijdige gamepagina's en een niet-afgeleverd
+stopbericht blijven afzonderlijke levenscyclusrisico's; die zijn niet met
+deze wijziging opgelost.
+
+Bron: `pages/game.html` (`finishRide`, `btnEndRide`),
+`tests/test_online_kom_ui.py`.
 
 ## Aanbevolen volgorde
 
-1. De ritstatus na beeindigen herstellen (punt 12).
-2. De menuknop en overige openstaande visuele punten uitvoeren.
-3. De per onderdeel genoemde praktijkcontroles en foutpaden afronden.
+1. Resterende praktijkcontroles uitvoeren: RPM bij stoppen en opnieuw verbinden (punt 1), groter versnellingsbereik en ventilatoruitval/herstel (punt 3). Cadans tijdens fietsen is door de gebruiker bevestigd; softwaretests zijn afgerond.
+2. Ventilatorvertraging (punt 3) is geimplementeerd; alleen de fysieke praktijkcontrole staat nog open.
+3. Pc-schermwakkerhouding (punt 5) is geimplementeerd; werking tijdens rit/pauze en vrijgave na beeindigen nog in de praktijk controleren. Telefoon is uitgesloten; een klassieke screensaver blijft zo nodig een afzonderlijk aandachtspunt.
+4. Menuknop tijdens de rit toevoegen (punt 11). De normale ritbeeindiging uit punt 12 is hersteld; nog een korte praktijkcontrole uitvoeren.
+5. Mobiel kruisje, NPC-dichtheid, gebouwen, fullscreenoverlays en screenshotsamenvatting uitvoeren (punten 2, 4, 6, 10 en 8).
+6. De resterende foutafhandeling van trainercommando's uit punt 7 gericht onderzoeken; normale SIM-werking bij 0% is al bevestigd.

@@ -3392,6 +3392,7 @@ function continueRide(){
 function finishRide(pausing){
   running=false;
   if(!pausing){
+    if(ridePaused&&t0)t0+=Math.max(0,Date.now()-pauseWall);
     ridePaused=false;
     fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'stop'})});
     fetch('/grade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grade:0})});
@@ -3571,9 +3572,7 @@ document.getElementById('btnFinishDrop').onclick=async()=>{
 document.getElementById('btnContinue').onclick=()=>{if(ridePaused)continueRide();};
 document.getElementById('btnEndRide').onclick=()=>{
   if(!ridePaused)return;
-  ridePaused=false;
-  document.getElementById('finishGoRow').style.display='none';
-  stopRide(true);
+  finishRide(false);
 };
 document.getElementById('btnAgain').onclick=()=>{
   leaveRoom(true);

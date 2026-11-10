@@ -325,6 +325,86 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.page.evaluate("simOn=false; rideSimUsed=false; document.getElementById('simToggle').click()")
         self.assertTrue(self.page.evaluate("rideSimUsed"))
 
+    def pause_test_ride(self):
+        self.page.goto(self.base + "/game")
+        self.page.evaluate("""() => {
+            selectRoute(ROUTES.find(r => r.id === 'ui-official'));
+            startRide();
+            window.testWall = Date.now();
+            Date.now = () => window.testWall;
+            t0 = Date.now() - 60000; simT = 60; dist = 40; spd = 0;
+            pauseRide();
+        }""")
+        self.assertTrue(self.page.locator("#btnContinue").is_visible())
+        self.assertEqual(self.page.locator("#finishTitle").text_content(), "Rit gepauzeerd")
+
+    def test_end_paused_ride_clears_resume_message_and_excludes_pause_time(self):
+        stops = []
+
+        def stop_request(route):
+            stops.append(route.request.method)
+            route.fulfill(json={"ok": True, "file": "fixture.tcx", "duration": 60, "distance": 40})
+
+        self.page.route("**/ritten/stop", stop_request)
+        self.pause_test_ride()
+        self.page.evaluate("window.testWall += 600000")
+        self.page.locator("#btnEndRide").click()
+        self.page.wait_for_function("pendingRide !== null")
+        self.assertEqual(self.page.evaluate("[running, ridePaused]"), [False, False])
+        self.assertEqual(self.page.locator("#finishTitle").text_content(), "Rit gestopt")
+        self.assertEqual(self.page.locator("#fRecord").text_content(), "Handmatig gestopt na 1:00")
+        self.assertFalse(self.page.locator("#finishGoRow").is_visible())
+        self.assertEqual(self.page.evaluate("Math.floor((Date.now()-t0)/1000)"), 60)
+        self.assertIn("1:00", self.page.locator("#fStats").text_content())
+        self.page.evaluate("document.getElementById('btnEndRide').click(); document.getElementById('btnContinue').click()")
+        self.assertEqual(self.page.evaluate("[running, ridePaused]"), [False, False])
+        self.assertEqual(stops, ["POST"])
+        self.page.locator("#btnFinishSave").click()
+        self.assertIn("Opgeslagen", self.page.locator("#finishSaveInfo").text_content())
+        self.assertNotIn("hervatten", self.page.locator("#fRecord").text_content())
+
+    def test_short_paused_ride_still_ends_without_recording_to_save(self):
+        stops = []
+
+        def stop_request(route):
+            stops.append(route.request.method)
+            route.fulfill(json={"ok": False, "error": "geen opname"})
+
+        self.page.route("**/ritten/stop", stop_request)
+        self.pause_test_ride()
+        self.page.locator("#btnEndRide").click()
+        self.page.wait_for_timeout(100)
+        self.assertEqual(stops, ["POST"])
+        self.assertEqual(self.page.locator("#finishTitle").text_content(), "Rit gestopt")
+        self.assertFalse(self.page.locator("#finishGoRow").is_visible())
+        self.assertFalse(self.page.locator("#finishSave").is_visible())
+        self.assertFalse(self.page.evaluate("ridePaused || running"))
+
+    def test_paused_ride_remains_resumable_until_explicit_end(self):
+        resumes = []
+
+        def resume_request(route):
+            resumes.append(route.request.method)
+            route.fulfill(json={"ok": True})
+
+        self.page.route("**/ritten/resume", resume_request)
+        self.pause_test_ride()
+        self.page.evaluate("window.testWall += 300000")
+        self.page.locator("#btnContinue").click()
+        self.page.wait_for_timeout(100)
+        self.assertEqual(resumes, ["POST"])
+        self.assertEqual(self.page.evaluate("[running, ridePaused]"), [True, False])
+        self.assertEqual(self.page.evaluate("Math.floor((Date.now()-t0)/1000)"), 60)
+        self.assertFalse(self.page.locator("#finish").is_visible())
+
+    def test_completed_ride_uses_terminal_summary_without_resume_controls(self):
+        self.page.goto(self.base + "/game")
+        self.page.evaluate("startRide(); finishT=60; finishRide()")
+        self.assertIn("Gefeliciteerd!", self.page.locator("#finishTitle").text_content())
+        self.assertFalse(self.page.locator("#finishGoRow").is_visible())
+        self.assertNotIn("hervatten", self.page.locator("#fRecord").text_content())
+        self.assertFalse(self.page.evaluate("ridePaused || running"))
+
     def test_sim_trainer_grade_diagnostics_without_enabling_simulation(self):
         data = {"connected": True, "ctrl": {"want_sim": True,
                 "sim_command": {"grade": 16, "status": "confirmed", "result": 1}}}
