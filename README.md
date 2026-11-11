@@ -278,7 +278,7 @@ Deze map wordt niet in git opgenomen.
 ### Sim (alleen voor testen)
 
 Open de game via `http://localhost:8080/game?sim=1`. Er verschijnt dan een
-knop **Sim** naast Stop. Daarmee stel je een vast vermogen (0–2000 W) en een
+knop **Sim** rechtsboven. Daarmee stel je een vast vermogen (0–2000 W) en een
 vaste cadans (0–200 rpm) in, die de game gebruikt in plaats van de trainer.
 Zo kun je testen zonder te fietsen.
 

@@ -102,7 +102,7 @@ class Handler(BaseHTTPRequestHandler):
             page = PAGE_START.replace("__LANURL__", remote_url)
             self._send(200, "text/html; charset=utf-8", render_page(page).encode())
         elif path == "/game":
-            mpage = {"mode": multi["mode"], "server": multi["server"],
+            mpage = {"server": multi["server"],
                      "name": settings["username"]}
             page = (load_page("game.html").replace("__ROUTES__", json.dumps(load_routes(), separators=(",", ":")))
                     .replace("__SETTINGS__", json.dumps(settings).replace("</", "<\\/"))
@@ -522,10 +522,6 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"ok": False, "error": "aantal versnellingen?"}, 400)
                 if not 2 <= gm <= 24:
                     return self._json({"ok": False, "error": "aantal versnellingen moet 2-24 zijn"}, 400)
-            mode = str(body.get("multi_mode", multi["mode"]))
-            if mode not in ("off", "server"):
-                return self._json({"ok": False, "error": "multiplayer-modus?"}, 400)
-            multi["mode"], multi["server"] = mode, MP_HOST
             settings["username"] = str(body.get("username", settings["username"])).strip()[:24]
             settings["weight"] = max(50.0, min(140.0, w))
             settings["overlay_font"] = of

@@ -83,4 +83,4 @@ fan = {"on": False, "host": "", "level": 0, "connected": False, "err": "",
 
 # ---- multiplayer: vaste host, niet instelbaar ----
 MP_HOST = "https://test.wattze.com"
-multi = {"mode": "off", "server": MP_HOST}
+multi = {"server": MP_HOST}

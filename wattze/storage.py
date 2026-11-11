@@ -112,10 +112,6 @@ def load_config():
                 click["want"] = not bool(d.get("click_off"))
                 if d.get("click_addr"):
                     click["addr"] = str(d["click_addr"]).upper()
-                role = str(d.get("multi_mode") or "off")
-                if role not in ("off", "server"):
-                    role = "off"
-                multi["mode"] = role
                 multi["server"] = MP_HOST
                 fan["on"] = bool(d.get("fan_on"))
                 fan["host"] = multi_host(d.get("fan_host"))
@@ -150,9 +146,8 @@ def save_config():
                         "route_feel": settings.get("route_feel", 100),
                         "vgear": gear["v"],
                        "vgear_max": gear["max"],
-                       "click_off": not click["want"], "click_addr": click["addr"],
-                         "multi_mode": multi["mode"], "multi_server": multi["server"],
-                        "fan_on": fan["on"], "fan_host": fan["host"],
+                         "click_off": not click["want"], "click_addr": click["addr"],
+                         "fan_on": fan["on"], "fan_host": fan["host"],
                         "fan_w": list(fan.get("w") or [80, 160, 240]),
                         "fan_coast": int(fan.get("coast") or 300)}, f)
     except Exception:

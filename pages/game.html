@@ -361,9 +361,9 @@ a{color:#4da3ff;font-size:13px}
 let power=0,cadence=0,hr=0,dist=0,spd=0,climbed=0,t0=null,running=false;
 let g=0,drafting=0,el=0,ghostDist=null,tuckAng=0,superK=0;
 const SETTINGS=__SETTINGS__;
-const MULTI=__MULTI__||{mode:'off',server:'',room:'',name:''};
+const MULTI=__MULTI__||{server:'',room:'',name:''};
 const MY_NAME=SETTINGS.username||MULTI.name||'Speler 1';
-const MP={mode:MULTI.mode||'off',server:String(MULTI.server||'').replace(/\/+$/,''),
+const MP={server:String(MULTI.server||'').replace(/\/+$/,''),
   room:null,playerId:null,owner:false,name:MY_NAME,rooms:[],offline:false,error:'',tried:{},pin:''};
 let mpRoomInfo=null,mpRoomsT=0,mpBusy=false,mpPlayers=0,mpRejoinAt=0,mpStatusSig='',mpRoomsSig='';
 let multiPeer=null,multiOthers=[],multiSession=null;
@@ -910,9 +910,6 @@ function yAt0(wx){return (cv.clientHeight/viewZ)*0.67-(elev(wx)-camY)*YS;}
 function roadY(wx,pct,scale){
   pct=(pct==null?0.74:pct);
   return yAt0(wx)-7+Math.max(0,Math.min(1,pct))*14-13*(scale||1);
-}
-function roadPct(wx,by,scale){
-  return (by+13*(scale||1)-(yAt0(wx)-7))/14;
 }
 function npcH(i){return hash1((npcSeed||1)*1.0003+i);}
 function useWorldNpcs(){return !!(MP.room&&(npcPack||npcSeed));}
@@ -2721,6 +2718,7 @@ function startRide(){
   syncRideMenu();
   multiInput();
   updateMultiStatus();
+  enterRideFs();
 }
 let rideStep='mode';
 function mpEnabled(){return !!MP.server;}
@@ -3053,7 +3051,7 @@ document.getElementById('btnStart').onclick=()=>{
     if(worldStatus==='countdown'){MP.error='Het spel start zo automatisch.';updateMultiStatus();return;}
     if(worldStatus==='riding'){
       if(multiSession)applyMultiRoute(multiSession);
-      if(!multiMissing){startRide();enterRideFs();}
+      if(!multiMissing)startRide();
       return;
     }
     MP.error='Dit spel is afgelopen. Verlaat het spel om opnieuw te starten.';
@@ -3061,7 +3059,6 @@ document.getElementById('btnStart').onclick=()=>{
     return;
   }
   startRide();
-  enterRideFs();
 };
 document.getElementById('mpName').addEventListener('input',e=>{
   e.target.dataset.edit=e.target.value.trim()&&e.target.value.trim()!==mpDefaultName()?'1':'';
@@ -3085,22 +3082,16 @@ document.getElementById('btnMpPinOk').onclick=()=>{
 document.getElementById('btnMpPinCancel').onclick=()=>closeJoinPin();
 document.getElementById('btnMpCreate').onclick=()=>askCreatePin();
 document.getElementById('btnSingle').onclick=()=>showStep('single');
-document.getElementById('btnSamen').onclick=()=>{MP.mode='server';showStep('samen');};
+document.getElementById('btnSamen').onclick=()=>showStep('samen');
 document.getElementById('btnGoCreate').onclick=()=>{
   syncMpName();
   const err=document.getElementById('createErr');if(err)err.textContent='';
   showStep('create');
 };
-document.getElementById('btnGoJoin').onclick=()=>{MP.mode='server';showStep('join');refreshRooms(true);};
+document.getElementById('btnGoJoin').onclick=()=>{showStep('join');refreshRooms(true);};
 document.querySelectorAll('.stepBack').forEach(b=>b.onclick=()=>showStep(b.dataset.step));
 document.getElementById('btnMpRefresh').onclick=()=>refreshRooms(true);
 document.getElementById('btnMpLeave').onclick=()=>leaveRoom();
-function multiRouteName(s){
-  if(!s||!s.route)return '';
-  const r=ROUTES.find(x=>x.id===s.route.id);
-  if(r)return r.name;
-  return s.route.id==='free'?'Vrije route':('onbekende route ('+s.route.id+')');
-}
 function joinDist(){
   let best=null;
   for(const p of multiOthers){
@@ -3329,7 +3320,6 @@ function multiInput(){
     }
   }).catch(()=>{multiOffline=true;}).finally(()=>{multiBusy=false;});
 }
-function multiTick(){multiInput();}
 function syncRideMenu(){
   const active=running||ridePaused;
   const menu=document.getElementById('rideMenu');

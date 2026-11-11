@@ -112,7 +112,7 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         for name, value in (("load_routes", lambda: [ROUTE]), ("load_koms", lambda: {}),
                             ("lan_ip", lambda: "127.0.0.1"),
                             ("settings", {"username": "UI Rider", "weight": 85, "overlay_font": "middel"}),
-                            ("multi", {"mode": "off", "server": ""}), ("gear", {"v": 6, "max": 12})):
+                            ("multi", {"server": ""}), ("gear", {"v": 6, "max": 12})):
             cls.stack.enter_context(patch.object(http_handler, name, value))
         cls.stack.enter_context(patch.object(pages, "settings", {"overlay_font": "middel"}))
         # Fail closed if a new page-serving branch accidentally reaches the real API.
