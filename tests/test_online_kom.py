@@ -105,7 +105,7 @@ class OnlineKOMTests(unittest.TestCase):
         production = kom._load()
         production["pending"] = [{"attempt_id": "production-only"}]
         kom._save(production)
-        with patch.dict(os.environ, {"WATTZE_KOM_HOST": "https://test.wattze.com"}):
+        with patch.dict(os.environ, {"WATTZE_KOM_HOST": "https://other.example"}):
             self.assertFalse(self.call("/status", method="GET")[0]["configured"])
             self.reply({"token": "test-only-token", "profile": PROFILE})
             self.assertEqual(self.call("/register", {"name": "Rider"})[1], 200)
@@ -113,7 +113,7 @@ class OnlineKOMTests(unittest.TestCase):
             self.assertIsNone(req.get_header("Authorization"))
             self.assertEqual(kom._load()["pending"], [])
             self.assertEqual(kom._load()["token"], "test-only-token")
-            with patch.dict(os.environ, {"WATTZE_KOM_HOST": "https://other.example"}):
+            with patch.dict(os.environ, {"WATTZE_KOM_HOST": "https://third.example"}):
                 self.assertFalse(self.call("/status", method="GET")[0]["configured"])
         self.assertEqual(kom._load(), production)
 
@@ -522,7 +522,7 @@ class OnlineKOMIntegrationTests(unittest.TestCase):
         registered = self.register()
         self.assertFalse(registered["profile"]["share_general"])
         token = registered["token"]
-        os.unlink(Path(self.temp.name) / "online-kom.json")
+        os.unlink(kom._storage_path())
         restored = self.call("/restore", {"token": token})
         self.assertEqual(restored["profile"], registered["profile"])
         self.assertNotIn("token", restored)
@@ -533,7 +533,7 @@ class OnlineKOMIntegrationTests(unittest.TestCase):
         self.assertEqual([(e["name"], e["time"], e["avgP"]) for e in board["entries"]],
                          [("Renamed", 120, 210)])
         self.assertEqual(self.call("/me", method="GET")["profile"]["name"], "Renamed")
-        os.unlink(Path(self.temp.name) / "online-kom.json")
+        os.unlink(kom._storage_path())
         self.assertEqual(self.board()["entries"], board["entries"])
         self.assertIsNone(self.opener.open.call_args.args[0].get_header("Authorization"))
         self.assertEqual(kom.handle("GET", "/leaderboard", query={**self.query, "scope": "friends"})[1], 409)
@@ -543,7 +543,7 @@ class OnlineKOMIntegrationTests(unittest.TestCase):
         self.share("Alice", general=False)
         self.call("/attempt", self.attempt)
         alice_data = kom._load()
-        os.unlink(Path(self.temp.name) / "online-kom.json")
+        os.unlink(kom._storage_path())
         bob = self.register("Bob")
         self.share("Bob")
         self.assertEqual(self.board("friends")["entries"], [])

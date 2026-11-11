@@ -78,8 +78,9 @@ def _host():
 
 def _storage_path():
     host = _host()
-    # Keep credentials and queued attempts isolated when using a test server.
-    filename = "online-kom.json" if host == app_state.MP_HOST.rstrip("/") else (
+    # wattze.com keeps the production profile. Every other host, including the
+    # current default, keeps its own file so an existing test login is reused.
+    filename = "online-kom.json" if host == "https://wattze.com" else (
         "online-kom-" + hashlib.sha256(host.encode()).hexdigest()[:16] + ".json")
     return os.path.join(app_state.RIDE_DIR, filename)
 

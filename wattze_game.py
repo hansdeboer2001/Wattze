@@ -75,6 +75,22 @@ def setup_logging():
     log("=== start (pid %d, poort %d) ===" % (os.getpid(), PORT))
 
 
+def open_fullscreen(url):
+    candidates = [
+        os.path.join(os.environ.get("ProgramFiles", ""), "Microsoft", "Edge", "Application", "msedge.exe"),
+        os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Microsoft", "Edge", "Application", "msedge.exe"),
+        os.path.join(os.environ.get("ProgramFiles", ""), "Google", "Chrome", "Application", "chrome.exe"),
+        os.path.join(os.environ.get("ProgramFiles(x86)", ""), "Google", "Chrome", "Application", "chrome.exe"),
+    ]
+    for browser in candidates:
+        if browser and os.path.isfile(browser):
+            import subprocess
+            subprocess.Popen([browser, "--new-window", "--start-fullscreen", url])
+            return
+    import webbrowser
+    webbrowser.open(url)
+
+
 def main():
     load_config()
     setup_logging()
@@ -90,16 +106,14 @@ def main():
     except OSError:
         log("Poort %d is al in gebruik" % PORT)
         if frozen:
-            import webbrowser
-            webbrowser.open(url)
+            open_fullscreen(url)
         return
     log("Start: http://localhost:%d/start  Dashboard: http://localhost:%d/" % (PORT, PORT))
     log("Telefoon: http://%s:%d/afstandsbediening" % (lan_ip(), PORT))
     if frozen:
         def _open_browser():
             time.sleep(0.8)
-            import webbrowser
-            webbrowser.open(url)
+            open_fullscreen(url)
         threading.Thread(target=_open_browser, daemon=True).start()
     wake_stop = threading.Event()
     wake_thread = threading.Thread(target=keep_awake_loop, args=(wake_stop,),

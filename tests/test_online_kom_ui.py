@@ -254,6 +254,16 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.page.evaluate("selectRoute(ROUTES.find(r => r.id === 'ui-official')); openKom();")
         self.page.wait_for_timeout(250)
 
+    def test_start_ride_enters_fullscreen(self):
+        self.page.goto(self.base + "/game")
+        started = self.page.evaluate("""() => {
+            let called = false;
+            ride.requestFullscreen = () => { called = true; return Promise.resolve(); };
+            document.getElementById('btnStart').click();
+            return called && running;
+        }""")
+        self.assertTrue(started)
+
     def test_game_local_general_friends_safe_names_and_offline_fallback(self):
         self.open_game()
         self.assertIn("Nog geen resultaten", self.page.locator("#komBody").inner_text())

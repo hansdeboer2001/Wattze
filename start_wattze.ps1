@@ -81,4 +81,18 @@ if (-not $up) {
   Read-Host 'Druk op Enter om te sluiten'
   exit 1
 }
-Start-Process "http://localhost:$port/start?boot=1"
+function Start-WattzeBrowser([string]$url) {
+  $candidates = @(
+    (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'),
+    (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe')
+  )
+  $browser = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+  if ($browser) {
+    Start-Process -FilePath $browser -ArgumentList '--new-window','--start-fullscreen',$url
+  } else {
+    Start-Process $url
+  }
+}
+Start-WattzeBrowser "http://localhost:$port/start?boot=1"

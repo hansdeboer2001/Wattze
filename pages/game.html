@@ -885,9 +885,14 @@ function placeRightOverlays(){
   }
   map.dataset.fsFit='1';
 }
+function enterRideFs(){
+  if(fsOn())return;
+  const req=ride.requestFullscreen||ride.webkitRequestFullscreen;
+  if(req)req.call(ride).catch(()=>{});
+}
 btnFs.onclick=()=>{
   if(fsOn()){(document.exitFullscreen||document.webkitExitFullscreen).call(document);}
-  else{(ride.requestFullscreen||ride.webkitRequestFullscreen).call(ride);}
+  else enterRideFs();
 };
 document.addEventListener('fullscreenchange',setFsLabel);
 document.addEventListener('webkitfullscreenchange',setFsLabel);
@@ -3048,7 +3053,7 @@ document.getElementById('btnStart').onclick=()=>{
     if(worldStatus==='countdown'){MP.error='Het spel start zo automatisch.';updateMultiStatus();return;}
     if(worldStatus==='riding'){
       if(multiSession)applyMultiRoute(multiSession);
-      if(!multiMissing)startRide();
+      if(!multiMissing){startRide();enterRideFs();}
       return;
     }
     MP.error='Dit spel is afgelopen. Verlaat het spel om opnieuw te starten.';
@@ -3056,6 +3061,7 @@ document.getElementById('btnStart').onclick=()=>{
     return;
   }
   startRide();
+  enterRideFs();
 };
 document.getElementById('mpName').addEventListener('input',e=>{
   e.target.dataset.edit=e.target.value.trim()&&e.target.value.trim()!==mpDefaultName()?'1':'';

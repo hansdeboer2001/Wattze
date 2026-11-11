@@ -210,14 +210,17 @@ voor die categorie definitief; opnieuw aanzetten deelt alleen nieuwe pogingen.
 Ook een wijziging op een andere pc maakt nog niet verstuurde pogingen met de
 oude deelvoorkeuren ongeldig.
 
-Profiel, geheime sleutel en wachtrij staan afzonderlijk in
-`WattzeRitten/online-kom.json`, niet in algemene instellingen of API-snapshots.
+Profiel, geheime sleutel en wachtrij staan afzonderlijk in `WattzeRitten`,
+niet in algemene instellingen of API-snapshots. `wattze.com` gebruikt
+`online-kom.json`. Elke andere server, inclusief de huidige standaard, gebruikt
+`online-kom-<serverhash>.json`.
 Bewaar dit bestand prive. Online beheer en de nieuwe lokale API werken uitsluitend
 via `http://localhost:<poort>` op deze pc, niet via het LAN-adres op je telefoon.
 
 ### App En Server Updaten
 
-De online API is een optionele uitbreiding onder `/api/kom/v1` op `wattze.com`.
+De online API is een optionele uitbreiding onder `/api/kom/v1`. De app wijst
+standaard naar `https://test.wattze.com`.
 De serverbron staat in het afzonderlijke project `../wattze-server`.
 
 - Een nieuwe app met een oude/offline server behoudt lokale ritten en KOM's.
@@ -231,32 +234,23 @@ blijvende datamap/volume en maak backups; zie `../wattze-server/README.md` voor
 deploy-, privacy- en protocolinformatie. Een app-update is op zichzelf dus geen
 reden om voortaan altijd de server tegelijk te moeten updaten.
 
-### Online KOM's Op De Testserver
+### Online KOM-server
 
-Stel op je Windows-pc in PowerShell voor het starten van Wattze de variabele
-`WATTZE_KOM_HOST` in. Vanuit de Wattze-projectmap:
+Multiplayer en online KOM's gebruiken standaard `https://test.wattze.com`.
+Daarvoor is geen omgevingsvariabele nodig. Het bestaande testprofiel blijft in
+`WattzeRitten/online-kom-6fb348ec3de40ee6.json`.
+
+Een andere server stel je alleen in als je daarvan af wilt wijken. De URL moet
+een HTTPS-adres zonder pad, inloggegevens of query zijn.
 
 ```powershell
-$env:WATTZE_KOM_HOST = "https://test.wattze.com"
+$env:WATTZE_KOM_HOST = "https://wattze.com"
 .\start_wattze.cmd
 ```
 
-Het startscript herstart de lokale app met deze instelling. Alleen online KOM's
-gebruiken de testserver; multiplayer blijft op `wattze.com`. De URL moet een
-HTTPS-serveradres zonder pad, inloggegevens of query zijn. Een lege of ontbrekende
-variabele gebruikt de productieserver.
-
-Elke afwijkende server krijgt een afzonderlijk lokaal profiel en wachtrij in
-`WattzeRitten/online-kom-<serverhash>.json`. Maak dus een nieuw testprofiel aan;
-herstel geen productiesleutel op de testserver. Het bestaande productieprofiel
-in `online-kom.json` en de lokale ritten/KOM's blijven ongewijzigd.
-
-Terug naar productie, in hetzelfde PowerShell-venster:
-
-```powershell
-Remove-Item Env:WATTZE_KOM_HOST -ErrorAction SilentlyContinue
-.\start_wattze.cmd
-```
+Die server krijgt zijn eigen profielbestand. Het testprofiel en de lokale
+ritten blijven ongewijzigd. Weglaten van de variabele keert terug naar
+`test.wattze.com`.
 
 De variabele geldt voor processen die vanuit dit PowerShell-venster worden gestart;
 een gewone dubbelklik neemt deze tijdelijke instelling niet over. Voor een exe
