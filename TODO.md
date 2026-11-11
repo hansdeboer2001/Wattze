@@ -6,6 +6,7 @@ hieronder per onderdeel bijgehouden.
 
 ## Actuele status
 
+- Binnenkort: verplichte ridernaam bij eerste gebruik. Zie `docs/herinnering-ridernaam.md`.
 - Punt 9: trainerhellingweergave en praktijkcontrole van verstuurde commando's afgerond.
 - Punt 7: normale werking bij 0% routegevoel bevestigd; afzonderlijke foutafhandeling blijft open.
 - Groter versnellingsbereik (-8% tot +8%): geimplementeerd en automatisch getest; rijgevoel nog controleren.
