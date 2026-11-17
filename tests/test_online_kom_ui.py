@@ -418,6 +418,59 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.evaluate("ridePaused || running"))
         self.assertFalse(self.page.locator("#btnMenu").is_visible())
 
+    def test_ride_screenshot_contains_power_summary_and_graph_at_mobile_and_desktop_sizes(self):
+        self.page.goto(self.base + "/game")
+        for width in (1440, 390):
+            self.page.set_viewport_size({"width": width, "height": 900})
+            self.page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+            for powers in ([100, 200, 300], [250], []):
+                with self.subTest(width=width, powers=powers):
+                    result = self.page.evaluate("""async powers => {
+                        running=false;
+                        course.name='Screenshot test route';
+                        finishT=60; dist=course.total+500;
+                        sumP=powers.reduce((a,b)=>a+b,0);cntP=powers.length;
+                        maxP=powers.length?Math.max(...powers):0;
+                        ridePwr=powers.map((p,t)=>({p,t}));
+                        const labels=[],graphs=[];
+                        const fill=CanvasRenderingContext2D.prototype.fillText;
+                        const paint=paintRidePwr;
+                        CanvasRenderingContext2D.prototype.fillText=function(text,...args){
+                            labels.push(String(text));return fill.call(this,text,...args);
+                        };
+                        paintRidePwr=(canvas,samples,size)=>{
+                            graphs.push(samples.map(s=>s.p));return paint(canvas,samples,size);
+                        };
+                        const sourceWidth=cv.width,sourceHeight=cv.height;
+                        let png;
+                        try{png=captureShot();}finally{
+                            CanvasRenderingContext2D.prototype.fillText=fill;paintRidePwr=paint;
+                        }
+                        const image=new Image();image.src=png;await image.decode();
+                        const check=document.createElement('canvas');
+                        check.width=image.width;check.height=image.height;
+                        const ctx=check.getContext('2d');ctx.drawImage(image,0,0);
+                        return {labels,graphs,width:image.width,height:image.height,
+                            sourceWidth,sourceHeight,
+                            footer:Array.from(ctx.getImageData(0,image.height-1,1,1).data),
+                            expectedDistance:course.km.toFixed(1)+' km',
+                            png:png.startsWith('data:image/png;base64,')};
+                    }""", powers)
+                    self.assertTrue(result["png"])
+                    self.assertEqual(result["width"], result["sourceWidth"])
+                    self.assertGreater(result["height"], result["sourceHeight"])
+                    self.assertEqual(result["footer"], [11, 14, 20, 255])
+                    self.assertEqual(result["graphs"], [powers])
+                    self.assertIn("Gemiddeld vermogen", result["labels"])
+                    self.assertIn("Maximaal vermogen", result["labels"])
+                    self.assertIn(f"{round(sum(powers) / len(powers)) if powers else 0} W", result["labels"])
+                    self.assertIn(f"{max(powers) if powers else 0} W", result["labels"])
+                    self.assertTrue(any(result["expectedDistance"] + " · 1:00" in text
+                                        for text in result["labels"]))
+                    if not powers:
+                        self.assertIn("Geen vermogensdata", result["labels"])
+        self.assertEqual(self.errors, [])
+
     def test_local_npcs_start_ahead_and_behind_without_popping_into_view(self):
         self.page.goto(self.base + "/game")
         traffic = self.page.evaluate("""() => {
@@ -509,6 +562,149 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertEqual(scenery["edge"], 420)
         for key in ("village", "gaps", "farm", "barn", "mill", "row", "single", "alpsFarm", "alpsChalet", "lamps", "back", "chapel", "inside", "outside"):
             self.assertTrue(scenery[key], key)
+
+    def test_visual_speed_details_scroll_with_distance_without_changing_ride_state(self):
+        self.page.goto(self.base + "/game")
+        result = self.page.evaluate("""() => {
+            running=false;dist=1000;spd=30/3.6;
+            ctx=cv.getContext('2d');
+            const before=[dist,spd,power,cadence,simT];
+            const rock=paintRock,moves=ctx.moveTo,records=[];
+            paintRock=(x,y,s,k)=>records.push({x,y,s,k});
+            const details=()=>{
+                records.length=0;drawRoadsideDetails(1600);
+                return records.map(r=>({...r}));
+            };
+            let first,still,advanced;
+            try{
+                first=details();nowT+=10;still=details();
+                dist+=1;advanced=details();dist-=1;
+            }finally{paintRock=rock;}
+            const paint=paintPastureAnimal,animals=[],shifts=[];
+            paintPastureAnimal=(kind,x,y,size,seed)=>animals.push({kind,x,size,seed});
+            try{
+                for(const width of [390,1600])for(let d=0;d<=2200;d+=100){
+                    dist=d;animals.length=0;drawForegroundAnimals(width);
+                    const initial=animals.slice();
+                    dist=d+1;animals.length=0;drawForegroundAnimals(width);
+                    for(const a of initial){
+                        const b=animals.find(b=>b.kind===a.kind&&b.seed===a.seed);
+                        if(b)shifts.push({kind:a.kind,width,dx:a.x-b.x,size:a.size,nextSize:b.size});
+                    }
+                }
+            }finally{paintPastureAnimal=paint;dist=before[0];}
+            const lines=()=>{
+                const points=[];
+                ctx.moveTo=(x,y)=>points.push([x,y]);
+                try{drawSpeedLines(800,500);}finally{ctx.moveTo=moves;}
+                return points;
+            };
+            spd=25/3.6;const slow=lines();
+            spd=30/3.6;const normal=lines();nowT+=10;const paused=lines();
+            const after=[dist,spd,power,cadence,simT];
+            return {xs:XS,first,still,advanced,shifts,slow,normal,paused,before,after};
+        }""")
+        self.assertAlmostEqual(result["xs"], 7 * 1.4)
+        self.assertEqual(result["before"], result["after"])
+        self.assertEqual(result["first"], result["still"])
+        for scale, depth in ((0.4, 1), (0.7, 1.45)):
+            matching = [(a, b) for a in result["first"] for b in result["advanced"]
+                        if a["s"] == scale and a["k"] == b["k"] and a["s"] == b["s"]]
+            self.assertTrue(matching, f"Missing scenery layer {depth}")
+            for a, b in matching:
+                self.assertAlmostEqual(a["x"] - b["x"], result["xs"] * depth)
+        self.assertEqual(result["slow"], [])
+        self.assertEqual(len(result["normal"]), 8)
+        self.assertEqual(result["normal"], result["paused"])
+        for width in (390, 1600):
+            self.assertEqual({s["kind"] for s in result["shifts"] if s["width"] == width}, {0, 1, 2})
+        for shift in result["shifts"]:
+            self.assertAlmostEqual(shift["dx"], result["xs"] * 1.45,
+                                   msg="Animals should pass at the same speed as the nearby grass")
+            self.assertEqual(shift["size"], shift["nextSize"])
+        self.assertEqual(self.errors, [])
+
+    def test_foreground_animals_animate_beside_road_and_freeze_when_paused(self):
+        self.pause_test_ride()
+        result = self.page.evaluate("""() => {
+            const originalCtx=ctx,paint=paintPastureAnimal,originalDist=dist;
+            const canvas=document.createElement('canvas');canvas.width=220;canvas.height=170;
+            ctx=canvas.getContext('2d');
+            const images=[];
+            try{
+                for(let kind=0;kind<3;kind++){
+                    const render=t=>{
+                        ctx.clearRect(0,0,220,170);
+                        paintPastureAnimal(kind,110,125,2,17,t);
+                        return canvas.toDataURL();
+                    };
+                    images.push([render(0),render(2),render(2)]);
+                }
+            }finally{ctx=originalCtx;}
+            const animals=[];
+            paintPastureAnimal=(kind,x,y,scale,seed,t)=>animals.push({kind,x,y,scale,seed,t,
+                clearance:y-yAt0(dist+(x-1440*.37)/XS)});
+            try{
+                for(dist=0;dist<=2200;dist+=100)drawForegroundAnimals(1440);
+            }finally{paintPastureAnimal=paint;dist=originalDist;}
+            window.animalPauseTime=simT;
+            return {images,animals,time:simT,state:[dist,spd,power,cadence]};
+        }""")
+        for kind, images in enumerate(result["images"]):
+            self.assertNotEqual(images[0], images[1], f"Animal {kind} should animate")
+            self.assertEqual(images[1], images[2], f"Animal {kind} should freeze at the same time")
+        self.assertEqual({animal["kind"] for animal in result["animals"]}, {0, 1, 2})
+        for animal in result["animals"]:
+            self.assertGreaterEqual(animal["clearance"], 76)
+            self.assertGreaterEqual(animal["x"], -110)
+            self.assertLessEqual(animal["x"], 1550)
+            self.assertEqual(animal["t"], result["time"])
+            self.assertEqual(animal["scale"], 1.45 if animal["kind"] == 2 else 1.15)
+        cow_pairs = [(a, b) for a, b in zip(result["animals"], result["animals"][1:])
+                     if a["kind"] == b["kind"] == 1 and abs(b["seed"] - a["seed"] - 3.1) < .001]
+        self.assertTrue(cow_pairs)
+        for a, b in cow_pairs:
+            self.assertGreater(b["x"] - a["x"], 110, "Neighboring cows should not overlap")
+        self.page.wait_for_timeout(250)
+        self.assertTrue(self.page.evaluate("ridePaused && simT === window.animalPauseTime"))
+        self.assertEqual(self.page.evaluate("[dist,spd,power,cadence]"), result["state"])
+        self.assertEqual(self.errors, [])
+
+    def test_animal_sizes_are_proportional_to_bike_and_to_each_other(self):
+        self.page.goto(self.base + "/game")
+        sizes = self.page.evaluate("""() => {
+            const saved=ctx,canvas=document.createElement('canvas');
+            canvas.width=300;canvas.height=220;ctx=canvas.getContext('2d');
+            const bounds=draw=>{
+                ctx.clearRect(0,0,300,220);draw();
+                const pixels=ctx.getImageData(0,0,300,220).data;
+                let left=300,right=0,top=220,bottom=0;
+                for(let y=0;y<220;y++)for(let x=0;x<300;x++){
+                    if(pixels[(y*300+x)*4+3]<40)continue;
+                    left=Math.min(left,x);right=Math.max(right,x);
+                    top=Math.min(top,y);bottom=Math.max(bottom,y);
+                }
+                return {width:right-left+1,height:bottom-top+1};
+            };
+            try{
+                return {rider:bounds(()=>drawBike(150,137,0,0,1,0,null,null,false,0)),
+                    sheep:bounds(()=>paintPastureAnimal(0,150,150,1,0,0)),
+                    cow:bounds(()=>paintPastureAnimal(1,150,150,1,0,0)),
+                    rabbit:bounds(()=>paintPastureAnimal(2,150,150,1,0,0)),
+                    nearCow:bounds(()=>paintPastureAnimal(1,150,150,1.15,0,0)),
+                    farCow:bounds(()=>paintPastureAnimal(1,150,150,.85,0,0))};
+            }finally{ctx=saved;}
+        }""")
+        self.assertGreater(sizes["cow"]["height"], sizes["sheep"]["height"] * 1.8)
+        self.assertLess(sizes["cow"]["height"], sizes["sheep"]["height"] * 2.2)
+        self.assertLess(sizes["rabbit"]["height"], sizes["sheep"]["height"] * .6)
+        self.assertGreater(sizes["cow"]["width"], sizes["rider"]["width"] * 1.2)
+        self.assertLess(sizes["cow"]["height"], sizes["rider"]["height"])
+        self.assertGreater(sizes["cow"]["height"], sizes["rider"]["height"] * .7)
+        self.assertLess(sizes["sheep"]["height"], sizes["rider"]["height"] * .5)
+        self.assertLess(sizes["rabbit"]["height"], sizes["rider"]["height"] * .25)
+        self.assertGreater(sizes["nearCow"]["height"], sizes["farCow"]["height"] * 1.25)
+        self.assertEqual(self.errors, [])
 
     def test_fullscreen_right_overlays_grow_without_covering_each_other(self):
         self.page.goto(self.base + "/game")
