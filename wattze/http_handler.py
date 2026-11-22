@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 from wattze.ble_wattze import scan_devices, scan_devices_cached
-from wattze import strava, online_kom, trainer_diagnostics
+from wattze import strava, online_kom, trainer_diagnostics, kom_archive
 from wattze.fan import fan_cmd, fan_failed, fan_visible
 from wattze.pages import *
 from wattze.rides import *
@@ -129,7 +129,13 @@ class Handler(BaseHTTPRequestHandler):
             page = load_page("settings.html").replace("__LANURL__", "http://%s:%d" % (lan_ip(), PORT))
             self._send(200, "text/html; charset=utf-8", render_page(page).encode())
         elif path == "/klassementen":
+            self._send(200, "text/html; charset=utf-8", render_page(load_page("klassementen.html")).encode())
+        elif path == "/klassementen/profiel":
             self._send(200, "text/html; charset=utf-8", render_page(load_page("online-kom.html")).encode())
+        elif path == "/koms/archief":
+            with kom_lock:
+                archive = kom_archive.ensure_archive(load_koms())
+            return self._json(kom_archive.public_archive(archive))
         elif self.path == "/settings":
             with lock:
                 fstat = {k: fan[k] for k in ("on", "host", "level", "connected", "err", "w", "force_level", "force_until", "mode", "coast", "coasting")}
@@ -598,15 +604,20 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/koms/record", "/koms/import", "/koms/clear"):
             with kom_lock:
                 d = load_koms()
+                kom_archive.ensure_archive(d)
                 if self.path == "/koms/record":
                     key = str(body.get("key", ""))
                     if not key.startswith("kom_"):
                         return self._json({"ok": False, "error": "key?"}, 400)
-                    merge_kom(d, key, [body.get("entry")])
+                    entry = body.get("entry")
+                    merge_kom(d, key, [entry])
+                    kom_archive.record_attempt(key, entry, body.get("archive"))
                 elif self.path == "/koms/import":
                     for key, entries in (body.get("data") or {}).items():
                         if str(key).startswith("kom_") and isinstance(entries, list):
                             merge_kom(d, str(key), entries)
+                            for entry in entries:
+                                kom_archive.record_legacy(str(key), entry)
                 else:
                     prefix = str(body.get("prefix", ""))
                     if not prefix.startswith("kom_"):
@@ -614,6 +625,18 @@ class Handler(BaseHTTPRequestHandler):
                     d = {k: v for k, v in d.items() if not k.startswith(prefix)}
                 save_koms(d)
             return self._json({"ok": True, "koms": d})
+        if self.path == "/koms/route":
+            if not isinstance(body, dict):
+                return self._json({"ok": False}, 400)
+            with kom_lock:
+                data = kom_archive.record_route(body.get("entry"), body.get("archive"))
+            return self._json({"ok": True, "attempts": len(data["attempts"])})
+        if self.path == "/koms/route-import":
+            if not isinstance(body, dict):
+                return self._json({"ok": False}, 400)
+            with kom_lock:
+                data, imported = kom_archive.import_route_history(body.get("prs"), body.get("ghosts"))
+            return self._json({"ok": True, "imported": imported, "attempts": len(data["attempts"])})
         if self.path == "/ritten/start":
             name = str(body.get("name") or "")
             rtype = str(body.get("type") or "rit")

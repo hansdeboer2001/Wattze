@@ -86,7 +86,7 @@ class FixtureHandler(http_handler.Handler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path in ("/game", "/klassementen", "/remote") or path.startswith("/online-kom/"):
+        if path in ("/game", "/klassementen", "/klassementen/profiel", "/remote") or path.startswith("/online-kom/"):
             return super().do_GET()
         if path == "/events":
             return self._send(200, "text/event-stream", b'data: {"power":0,"cadence":0,"hr":0}\n\n')
@@ -183,7 +183,7 @@ class OnlineKOMBrowserTests(unittest.TestCase):
 
     def register(self, fail_refresh=False):
         self.server.fixture["me_error"] = fail_refresh
-        self.page.goto(self.base + "/klassementen")
+        self.page.goto(self.base + "/klassementen/profiel")
         self.ready()
         self.page.locator("#newName").fill("UI Rider")
         self.submit("#registerForm")
@@ -213,7 +213,7 @@ class OnlineKOMBrowserTests(unittest.TestCase):
         self.assertFalse(self.page.locator("#recovery").is_visible())
 
     def test_restore_profile_preferences_friend_actions_and_retry(self):
-        self.page.goto(self.base + "/klassementen")
+        self.page.goto(self.base + "/klassementen/profiel")
         self.ready()
         self.page.locator("summary").click()
         self.page.locator("#restoreToken").fill("  " + TOKEN + "  ")

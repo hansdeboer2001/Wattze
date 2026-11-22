@@ -27,7 +27,8 @@ zelf de Strava-koppeling gebruikt, gaan ritten naar Strava.
   bedienen vanaf je telefoon (zelfde Wi-Fi).
 - **Instellingen** (`/instellingen`) — naam, gewicht, tekstgrootte, aantal
   versnellingen en de ventilator.
-- **KOM-klassement** — tijden per klim worden lokaal bewaard.
+- **Klassementen** (`/klassementen`) — al je eigen KOM-pogingen en uitgereden routes.
+  Algemeen en Vrienden volgen later. Profiel en vrienden staan op `/klassementen/profiel`.
 - **Multiplayer** — optioneel samen rijden via een server (standaard uit).
 
 ## Vereisten
@@ -82,6 +83,8 @@ Open daarna `http://localhost:8080/start` om je apparaten te kiezen.
 | `/start` | Apparaten kiezen en telefoon-QR |
 | `/afstandsbediening` (of `/remote`) | Telefoonafstandsbediening |
 | `/instellingen` | Instellingen |
+| `/klassementen` | Eigen KOM-archief; Algemeen en Vrienden volgen later |
+| `/klassementen/profiel` | Online profiel, vrienden en delen |
 | `/api`, `/events` | JSON- en SSE-interface voor de pagina's |
 
 ## Trainers, sensoren en versnellingen
@@ -173,17 +176,21 @@ zelf toe:
 
 ## Online KOM-Klassementen
 
-Open **Instellingen > Online KOM's**, of ga naar `/klassementen`. Maak een
+Open **Klassementen** op het startscherm, of ga naar `/klassementen`. Profiel, vrienden
+en delen staan op `/klassementen/profiel` (ook via Instellingen). Maak een
 rijdersprofiel aan en bewaar de geheime herstelsleutel in je
 wachtwoordmanager. Daarmee herstel je hetzelfde profiel op een andere pc.
 Er is geen e-mailadres of wachtwoord nodig. De sleutel blijft op de beheerpagina
 beschikbaar totdat je bevestigt dat je hem hebt bewaard. Deel nooit de herstelsleutel.
 
-- **Lokaal:** je bestaande KOM's op deze pc, ook zonder account of internet.
+- **Mijn KOM's:** alle volledige pogingen op deze pc, ook zonder account of internet.
+  De ranglijst in Ride blijft de snelste 20 per segment.
 - **Algemeen:** openbare beste tijd per rijder; bekijken kan zonder profiel.
 - **Vrienden:** jouw beste tijd en die van geaccepteerde vrienden die delen aanzetten.
 
-Je vindt de drie tabs in de KOM-ranglijst in Ride. Stuur je **vriendencode** naar
+Op `/klassementen` werkt Mijn KOM's offline. Algemeen en Vrienden op die pagina
+volgen later via een nieuw serverendpoint. Tijdens een rit vind je die twee
+tabs al in de KOM-ranglijst. Stuur je **vriendencode** naar
 een fietsmaatje. Die voert hem in en verstuurt een verzoek; jij accepteert dat
 onder Ontvangen verzoeken. Beide rijders kunnen een vriendschap verwijderen.
 De vriendencode is geen login en geeft op zichzelf geen toegang tot resultaten.
@@ -202,7 +209,7 @@ Er wordt gecontroleerd op ongeldige waarden en onmogelijke snelheden, maar
 resultaten zijn **zelfgerapporteerd, geen geverifieerde wedstrijdresultaten**.
 
 Bij tijdelijke netwerk-/serverproblemen bewaart de app maximaal 1000 pogingen
-in een lokale wachtrij. Gebruik **Opnieuw versturen** op `/klassementen`;
+in een lokale wachtrij. Gebruik **Opnieuw versturen** op `/klassementen/profiel`;
 maximaal 20 pogingen per klik. Dubbele verzending maakt geen dubbele resultaten.
 Voorkeuren wijzigen wist de wachtrij, zodat pogingen niet onverwacht met nieuwe
 deelvoorkeuren worden gepubliceerd. Delen uitzetten verbergt eerdere tijden
@@ -267,7 +274,10 @@ Opgeslagen gegevens staan in `WattzeRitten/` (automatisch aangemaakt):
 
 - `config.json` — apparaatkeuze, instellingen en je Strava-login.
 - `rides.json` — index van opgenomen ritten.
-- `koms.json` — KOM-tijden.
+- `koms.json` — KOM-ranglijst tijdens een rit (snelste 20 per segment).
+- `kom-archief.json` — alle volledige KOM-pogingen en uitgereden routes.
+  Oude KOM-records zijn eenmalig overgenomen. Eerder verwijderde pogingen komen niet terug.
+  Opgeslagen ritten worden niet als route-record gebruikt. De ghost van je beste rit blijft apart werken.
 - `*.tcx` — de opgenomen ritten.
 - `*.png` — het screenshot bij een rit (zelfde naam als de `.tcx`).
 
