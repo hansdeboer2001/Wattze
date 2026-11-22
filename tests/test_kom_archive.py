@@ -182,6 +182,75 @@ class ArchiveStorageTests(unittest.TestCase):
         self.assertEqual(kom_archive.revision_for_route_id("official"),
                          independent_revision(self.route["ele"], self.route["step"], self.route["segs"]))
 
+    def test_completed_routes_keep_every_attempt_and_do_not_invent_old_data(self):
+        self.write_koms({})
+        file_revision = independent_revision(self.route["ele"], self.route["step"], self.route["segs"])
+        self.assertEqual(kom_archive.profile_revision(self.route), file_revision)
+        plain = {"id": "plain", "name": "Vlak", "ele": [1.0, 2.0, 3.0], "step": 25}
+        with open(os.path.join(self.routes, "plain.json"), "w", encoding="utf-8") as f:
+            json.dump(plain, f)
+        self.assertIsNone(kom_archive.route_revision(plain))
+        plain_revision = kom_archive.profile_revision(plain)
+        self.assertEqual(len(plain_revision), 24)
+        for time, paused in ((1800, True), (1700, False)):
+            kom_archive.record_route(
+                {"time": time, "avgP": 210, "date": 5000 + time, "user": "Hans"},
+                {"route_id": "official", "route_name": "Officieel", "route_km": 1.875, "route_seed": 0,
+                 "simulated": True, "erg": False, "paused": paused})
+        kom_archive.record_route({"time": 0, "avgP": 1, "date": 1, "user": "Hans"},
+                                 {"route_id": "official", "route_name": "Officieel"})
+        kom_archive.record_route({"time": 900, "avgP": 150, "date": 9, "user": "Hans"},
+                                 {"route_id": "plain", "route_name": "Vlak", "route_km": 0.05, "route_seed": 0,
+                                  "simulated": False, "erg": True, "paused": False})
+        routes = [row for row in kom_archive.public_archive()["attempts"] if row["kind"] == "route"]
+        self.assertEqual(sorted(row["time"] for row in routes), [900, 1700, 1800])
+        climbed = next(row for row in routes if row["time"] == 1800)
+        self.assertEqual(climbed["revision"], file_revision)
+        self.assertEqual(climbed["route_id"], "official")
+        self.assertIsNone(climbed["segment"])
+        self.assertIsNone(climbed["segment_index"])
+        self.assertIsNone(climbed["segment_name"])
+        self.assertEqual(climbed["user"], "Hans")
+        self.assertEqual(climbed["avgP"], 210)
+        self.assertIs(climbed["simulated"], True)
+        self.assertIs(climbed["paused"], True)
+        self.assertIs(climbed["erg"], False)
+        self.assertFalse(climbed["legacy"])
+        self.assertEqual(next(row for row in routes if row["time"] == 900)["revision"], plain_revision)
+        rides = [{"file": "a.tcx", "name": "Officieel 1.9km", "type": "game", "date": "2024-01-01 10:00",
+                  "duration": 1800, "distance": 1875, "avg_w": 200}]
+        with open(os.path.join(self.ride, "rides.json"), "w", encoding="utf-8") as f:
+            json.dump(rides, f)
+        self.assertEqual(kom_archive.route_attempts_from_saved_rides(rides), [])
+        self.assertEqual(len(kom_archive.ensure_archive()["attempts"]), 3)
+        data, imported = kom_archive.import_route_history(
+            {"pr_Oude berg|10.00|2": {"time": 412, "avg": 238, "np": 250, "date": 111, "dist": 10}},
+            {"ghost_Oude berg|10.00|2": {"time": 412.4, "pts": [[0, 0], [1, 10]], "avgP": 999}})
+        self.assertEqual(imported, 1)
+        old = [row for row in kom_archive.public_archive()["attempts"]
+               if row["legacy"] and row["kind"] == "route"]
+        self.assertEqual(len(old), 1)
+        self.assertEqual(old[0]["time"], 412)
+        self.assertEqual(old[0]["avgP"], 238)
+        self.assertEqual(old[0]["date"], 111)
+        self.assertIsNone(old[0]["revision"])
+        self.assertIsNone(old[0]["route_id"])
+        self.assertIsNone(old[0]["user"])
+        self.assertIsNone(old[0]["simulated"])
+        self.assertIsNone(old[0]["erg"])
+        self.assertIsNone(old[0]["paused"])
+        self.assertEqual(old[0]["route_name"], "Oude berg")
+        again, imported_again = kom_archive.import_route_history(
+            {"pr_Oude berg|10.00|2": {"time": 412, "avg": 238, "date": 111}},
+            {"ghost_Los|3.00|1": {"time": 80.2, "avgP": 400}})
+        self.assertEqual(imported_again, 1)
+        ghosts = [row for row in again["attempts"] if row.get("route_name") == "Los"]
+        self.assertEqual(len(ghosts), 1)
+        self.assertIsNone(ghosts[0]["avgP"])
+        self.assertIsNone(ghosts[0]["date"])
+        self.assertIsNone(ghosts[0]["revision"])
+        self.assertIn("niet overgenomen", kom_archive.public_archive()["notice"])
+
 
 class ArchiveHttpTests(unittest.TestCase):
     @classmethod
@@ -269,11 +338,47 @@ class ArchiveHttpTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertFalse(rejected["ok"])
 
+    def test_route_results_stay_out_of_the_segment_leaderboard(self):
+        status, first = self.request("POST", "/koms/route", {
+            "entry": {"time": 1800, "avgP": 210, "date": 5000, "user": "Hans"},
+            "archive": {"route_id": "official", "route_name": "Officieel", "route_km": 1.875,
+                        "route_seed": 0, "simulated": False, "erg": False, "paused": True},
+        })
+        self.assertEqual(status, 200)
+        self.assertTrue(first["ok"])
+        self.assertNotIn("koms", first)
+        status, second = self.request("POST", "/koms/route", {
+            "entry": {"time": 0, "avgP": 1, "date": 1, "user": "Hans"},
+            "archive": {"route_id": "official", "route_name": "Officieel"},
+        })
+        self.assertEqual(second["attempts"], first["attempts"])
+        status, archive = self.request("GET", "/koms/archief")
+        routes = [row for row in archive["attempts"] if row["kind"] == "route"]
+        self.assertEqual([row["time"] for row in routes], [1800])
+        self.assertEqual(routes[0]["revision"], self.revision)
+        self.assertIsNone(routes[0]["segment"])
+        self.assertIs(routes[0]["paused"], True)
+        status, imported = self.request("POST", "/koms/route-import", {
+            "prs": {"pr_Oud|5.00|1": {"time": 44, "avg": 150, "date": 10, "np": 160}},
+            "ghosts": {"ghost_Oud|5.00|1": {"time": 44.2, "pts": [[0, 0]], "avgP": 999}},
+        })
+        self.assertEqual(imported["imported"], 1)
+        _, archive = self.request("GET", "/koms/archief")
+        legacy = [row for row in archive["attempts"] if row["kind"] == "route" and row["legacy"]]
+        self.assertEqual(len(legacy), 1)
+        self.assertEqual(legacy[0]["avgP"], 150)
+        self.assertIsNone(legacy[0]["user"])
+        self.assertIsNone(legacy[0]["revision"])
+        with open(self.kom_file, encoding="utf-8") as f:
+            board = json.load(f)
+        self.assertNotIn("route_Officieel|1.88|0", board)
+
     def test_pages_serve_archive_and_profile(self):
         status, page = self.request("GET", "/klassementen")
         self.assertEqual(status, 200)
         text = page.decode()
         self.assertIn("Mijn KOM's", text)
+        self.assertIn("Hele route", text)
         self.assertIn("Binnenkort", text)
         self.assertIn("komen niet terug", text)
         self.assertIn("/klassementen/profiel", text)

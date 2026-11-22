@@ -41,7 +41,7 @@ th button{background:none;border:0;color:#9aa3b5;font:inherit;cursor:pointer;pad
 <main>
 <p class="nav"><a href="/game">Ride</a> &middot; <a href="/klassementen/profiel">Profiel en vrienden</a></p>
 <h1>Klassementen</h1>
-<p class="sub">Je eigen KOM-pogingen op deze pc. Algemeen en Vrienden komen later via de server.</p>
+<p class="sub">Je eigen KOM-pogingen en route-records op deze pc. Algemeen en Vrienden komen later via de server.</p>
 <div class="tabs" role="tablist" aria-label="Klassementen">
   <button type="button" role="tab" id="tabMine" aria-selected="true" aria-controls="panelMine">Mijn KOM's</button>
   <button type="button" role="tab" id="tabGeneral" aria-selected="false" aria-controls="panelGeneral">Algemeen</button>
@@ -49,12 +49,12 @@ th button{background:none;border:0;color:#9aa3b5;font:inherit;cursor:pointer;pad
 </div>
 <p id="status" role="status"></p>
 <section id="panelMine">
-  <p class="notice" id="notice">Eerder verwijderde pogingen en tijden die buiten de oude top 20 vielen, komen niet terug. Nieuwe volledige pogingen worden wel allemaal bewaard, ook buiten de ranglijst. Wissen in Ride haalt alleen de ranglijst leeg; dit archief blijft staan.</p>
+  <p class="notice" id="notice">Eerder verwijderde pogingen en tijden die buiten de oude top 20 vielen, komen niet terug. Nieuwe volledige pogingen en uitgereden routes worden wel allemaal bewaard, ook buiten de ranglijst. Opgeslagen ritten zijn niet overgenomen: daaruit is niet betrouwbaar af te leiden dat de route is uitgereden. Wissen in Ride haalt alleen de ranglijst leeg; dit archief blijft staan. De ghost van je beste rit blijft werken.</p>
   <div id="listView">
     <div class="filters">
-      <label>Zoeken<input id="q" type="search" placeholder="Route, segment of rijder" autocomplete="off"></label>
+      <label>Zoeken<input id="q" type="search" placeholder="Route, onderdeel of rijder" autocomplete="off"></label>
       <label>Route<select id="route"><option value="">Alle routes</option></select></label>
-      <label>Segment<select id="segment"><option value="">Alle segmenten</option></select></label>
+      <label>Onderdeel<select id="segment"><option value="">Alle onderdelen</option></select></label>
       <label>Periode<select id="period">
         <option value="all">Alles</option>
         <option value="7">Laatste 7 dagen</option>
@@ -105,9 +105,14 @@ function routeLabel(a){
   return name;
 }
 function segmentLabel(a){
+  if(a.kind==='route')return 'Hele route';
   if(a.segment_name)return a.segment_name;
   if(Number.isInteger(a.segment_index))return 'Segment '+(a.segment_index+1);
   return 'Segment';
+}
+function partOrder(sample){
+  if(sample.kind==='route')return -1;
+  return Number.isInteger(sample.segment_index)?sample.segment_index:9999;
 }
 function variantLabel(a){return a.revision?('Versie '+a.revision.slice(0,8)):'Oude of onbekende variant';}
 function groupId(a){return (a.key||'')+'\n'+(a.revision||'');}
@@ -175,7 +180,7 @@ function groupsOf(list){
       if(t!=null&&t>=lastT){lastT=t;last=row;}
     }
     return {id,rows,sample,best,last};
-  }).sort((a,b)=>routeLabel(a.sample).localeCompare(routeLabel(b.sample),'nl')||((a.sample.segment_index||0)-(b.sample.segment_index||0))||variantLabel(a.sample).localeCompare(variantLabel(b.sample),'nl'));
+  }).sort((a,b)=>routeLabel(a.sample).localeCompare(routeLabel(b.sample),'nl')||(partOrder(a.sample)-partOrder(b.sample))||variantLabel(a.sample).localeCompare(variantLabel(b.sample),'nl'));
 }
 function fillSelect(sel,values,placeholder){
   const current=sel.value;
@@ -192,7 +197,7 @@ function refreshFilters(){
   fillSelect($('route'),routes,'Alle routes');
   const route=$('route').value;
   const segs=[...new Set(attempts.filter(a=>!route||routeLabel(a)===route).map(segmentLabel))].sort((a,b)=>a.localeCompare(b,'nl'));
-  fillSelect($('segment'),segs,'Alle segmenten');
+  fillSelect($('segment'),segs,'Alle onderdelen');
 }
 function stat(className,label,value){
   const el=document.createElement('div');el.className='stat '+className;
@@ -203,7 +208,7 @@ function stat(className,label,value){
 function renderList(){
   const host=$('segments');host.replaceChildren();
   const groups=groupsOf(filtered());
-  $('count').textContent=groups.length?groups.length+(groups.length===1?' segment':' segmenten'):'';
+  $('count').textContent=groups.length?groups.length+(groups.length===1?' resultaat':' resultaten'):'';
   if(!attempts.length){host.textContent='Nog geen KOM-pogingen in het archief. Rijd een segment uit in Ride; de poging komt hier te staan.';return;}
   if(!groups.length){host.textContent='Geen pogingen voor deze filters.';return;}
   for(const group of groups){

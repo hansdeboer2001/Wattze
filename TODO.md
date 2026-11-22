@@ -2,7 +2,7 @@
 
 ## Klassementen: Persoonlijk En Online
 
-Status: stap 1 (lokaal archief en Mijn KOM's) is geimplementeerd. Het online overzicht wacht op een serverendpoint.
+Status: lokaal archief voor KOM-segmenten en uitgereden routes is geimplementeerd. Het online overzicht wacht op een serverendpoint.
 
 Een extra Klassementen-tegel op het startscherm voor het persoonlijke KOM-archief
 en de online klassementen, zonder eerst een route in Ride te openen.
@@ -26,6 +26,14 @@ Hiervoor zijn zowel appwijzigingen als een serverupdate nodig.
 - [x] Simulatie-, ERG- en pauzestatus vastleggen en herkenbaar tonen; ontbrekende gegevens bij oude records niet verzinnen.
 - [x] Oude en onbekende lokale routevarianten zichtbaar houden.
 - [x] Mijn KOM's offline bruikbaar houden.
+
+### Route-records
+
+- [x] Elke uitgereden route lokaal archiveren met id, route, versie, naam, finishtijd, tijd, vermogen, rijder en sim/ERG/pauze.
+- [x] Oude ritten alleen meenemen als de finishtijd betrouwbaar is. `rides.json` niet als route-record gebruiken.
+- [x] Route-records naast de segmenten in Mijn KOM's tonen, met beste tijd, vermogen, aantal en detail.
+- [x] De ghost van de beste rit blijven gebruiken.
+- [x] Het lokale model klaarzetten voor een latere upload (`kind: route`, segment leeg).
 
 ### Online Klassementen
 

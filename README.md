@@ -27,7 +27,7 @@ zelf de Strava-koppeling gebruikt, gaan ritten naar Strava.
   bedienen vanaf je telefoon (zelfde Wi-Fi).
 - **Instellingen** (`/instellingen`) — naam, gewicht, tekstgrootte, aantal
   versnellingen en de ventilator.
-- **Klassementen** (`/klassementen`) — al je eigen KOM-pogingen, ook buiten de top 20.
+- **Klassementen** (`/klassementen`) — al je eigen KOM-pogingen en uitgereden routes.
   Algemeen en Vrienden volgen later. Profiel en vrienden staan op `/klassementen/profiel`.
 - **Multiplayer** — optioneel samen rijden via een server (standaard uit).
 
@@ -275,8 +275,9 @@ Opgeslagen gegevens staan in `WattzeRitten/` (automatisch aangemaakt):
 - `config.json` — apparaatkeuze, instellingen en je Strava-login.
 - `rides.json` — index van opgenomen ritten.
 - `koms.json` — KOM-ranglijst tijdens een rit (snelste 20 per segment).
-- `kom-archief.json` — alle volledige KOM-pogingen, ook buiten die ranglijst.
-  Oude records zijn eenmalig overgenomen. Eerder verwijderde pogingen komen niet terug.
+- `kom-archief.json` — alle volledige KOM-pogingen en uitgereden routes.
+  Oude KOM-records zijn eenmalig overgenomen. Eerder verwijderde pogingen komen niet terug.
+  Opgeslagen ritten worden niet als route-record gebruikt. De ghost van je beste rit blijft apart werken.
 - `*.tcx` — de opgenomen ritten.
 - `*.png` — het screenshot bij een rit (zelfde naam als de `.tcx`).
 

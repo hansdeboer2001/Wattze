@@ -378,7 +378,7 @@ const OVERLAY_FS=Math.round(12*TS);
 function fpx(n,b){return (b?'600 ':'')+Math.round(n*TS)+'px "Segoe UI",system-ui,sans-serif';}
 let KOMS=__KOMS__;
 let mass=SETTINGS.weight||85,crank=0,camY=0,lastPostT=0,lastPostG=999;
-let rideKoms=[],rideSimUsed=false,rideShot=null;
+let rideKoms=[],rideSimUsed=false,rideWasPaused=false,rideShot=null;
 let sumP=0,cntP=0,maxP=0,sumHr=0,cntHr=0,sumCad=0,cntCad=0,route='free',sumP4=0,lastPosT=0;
 let nowT=0,dayPhase=0;
 let ergWorkout=null,ergOn=false,ergT=0,ergLastPost=-1,ergLastPostT=0,ergDone=false,ergScale=1;
@@ -2541,6 +2541,18 @@ function syncErgFs(){
   ride.classList.toggle('has-erg',!!ergWorkout);
   ride.classList.toggle('erg-fs',!!(fsOn()&&ergOn&&ergWorkout));
 }
+function archiveRoute(time,avgP){
+  try{
+    const meta={route_id:(route&&route!=='free')?route:null,route_name:course.name||'',
+      route_km:+course.km.toFixed(2),route_seed:course.seed||0,
+      simulated:!!(rideSimUsed||simOn),erg:!!ergOn,paused:!!rideWasPaused};
+    const known=ROUTES.find(r=>r.id===route);
+    if(!(known&&known.fixed&&known.ele)&&course&&course.pts)
+      meta.course={ele:course.pts,step:course.step,segs:(segs||[]).map(s=>({at:s.at,end:s.end}))};
+    fetch('/koms/route',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({entry:{time:time,avgP:avgP,date:Date.now(),user:SETTINGS.username||''},archive:meta})}).catch(()=>{});
+  }catch(e){}
+}
 function prKey(){return 'pr_'+courseKey();}
 function loadPR(){try{return JSON.parse(localStorage.getItem(prKey())||'null');}catch(e){return null;}}
 function savePR(o){try{localStorage.setItem(prKey(),JSON.stringify(o));}catch(e){}}
@@ -2829,7 +2841,7 @@ function startRide(){
   lateJoin=!!late;segPartial=false;
   dist=slot?slot.dist:-RUNIN;spd=slot?slot.spd:0;climbed=0;t0=null;running=true;lastPostG=999;
   sumP=0;cntP=0;maxP=0;sumHr=0;cntHr=0;sumCad=0;cntCad=0;sumP4=0;
-  rideKoms=[];rideSimUsed=simOn;rideShot=null;
+  rideKoms=[];rideSimUsed=simOn;rideWasPaused=false;rideShot=null;
   buildRoute();setupTraffic();loadGhost();
   ghostRec=[];ghostSampleT=Date.now();ghostCrank=0;pwrHist=[];ridePwr=[];pwrT=performance.now();pwrAcc=0;pwrAccT=0;pwrLastNow=0;pwrWin=[];hrHist=[];hrT=0;
   ergT=0;ergLastPost=-1;ergLastPostT=0;ergDone=false;
@@ -3611,6 +3623,7 @@ let pauseDrawNow=0;
 function pauseRide(){
   if(!running)return;
   // A paused segment is not comparable with an uninterrupted online attempt.
+  rideWasPaused=true;
   if(curSeg>=0)segOnlinePaused=true;
   ridePaused=true;
   pauseWall=Date.now();
@@ -3664,6 +3677,7 @@ function finishRide(pausing){
   const avgSpd=s>0?((completed?course.total:riddenM)/s*3.6):0;
   const prev=loadPR();
   const isRecord=completed&&s>0&&!lateJoin&&(!prev||s<prev.time);
+  if(completed&&s>0&&!lateJoin)archiveRoute(s,avgP);
   if(isRecord)savePR({time:s,avg:avgP,np:np,climb:Math.round(climbed),dist:course.km,date:Date.now()});
   document.getElementById('finishTitle').innerHTML=completed?'Gefeliciteerd! &#127937;':(pausing?'Rit gepauzeerd':'Rit gestopt');
   document.getElementById('fRecord').textContent=
@@ -4092,6 +4106,22 @@ try{
     setErgWorkout(mkErgWorkout(once.name||'Training',once.blocks,once.ftp));
   }
 }catch(e){}
+(function importRouteHistory(){
+  const prs={},ghosts={};
+  try{
+    Object.keys(localStorage).forEach(k=>{
+      if(k.startsWith('pr_'))prs[k]=JSON.parse(localStorage.getItem(k)||'null');
+      else if(k.startsWith('ghost_')){
+        const g=JSON.parse(localStorage.getItem(k)||'null');
+        if(g&&typeof g.time==='number')ghosts[k]={time:g.time};
+      }
+    });
+  }catch(e){return;}
+  if(!Object.keys(prs).length&&!Object.keys(ghosts).length)return;
+  // Keep the local PR and ghost: the in-ride ghost still reads them.
+  fetch('/koms/route-import',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({prs:prs,ghosts:ghosts})}).catch(()=>{});
+})();
 (function importLocalKoms(){
   const data={};
   try{Object.keys(localStorage).filter(k=>k.startsWith('kom_')).forEach(k=>{data[k]=JSON.parse(localStorage.getItem(k)||'[]');});}catch(e){return;}

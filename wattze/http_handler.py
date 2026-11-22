@@ -625,6 +625,18 @@ class Handler(BaseHTTPRequestHandler):
                     d = {k: v for k, v in d.items() if not k.startswith(prefix)}
                 save_koms(d)
             return self._json({"ok": True, "koms": d})
+        if self.path == "/koms/route":
+            if not isinstance(body, dict):
+                return self._json({"ok": False}, 400)
+            with kom_lock:
+                data = kom_archive.record_route(body.get("entry"), body.get("archive"))
+            return self._json({"ok": True, "attempts": len(data["attempts"])})
+        if self.path == "/koms/route-import":
+            if not isinstance(body, dict):
+                return self._json({"ok": False}, 400)
+            with kom_lock:
+                data, imported = kom_archive.import_route_history(body.get("prs"), body.get("ghosts"))
+            return self._json({"ok": True, "imported": imported, "attempts": len(data["attempts"])})
         if self.path == "/ritten/start":
             name = str(body.get("name") or "")
             rtype = str(body.get("type") or "rit")
