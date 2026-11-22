@@ -352,7 +352,7 @@ a{color:#4da3ff;font-size:13px}
 <div id="kom" style="display:none;position:fixed;inset:0;background:rgba(5,8,14,.9);align-items:center;justify-content:center;z-index:15;overflow:auto">
 <div style="background:#161b26;border-radius:12px;padding:20px;max-width:620px;width:92%;margin:20px">
 <h2 style="margin-top:0">KOM-ranglijst (top 5) &mdash; <span id="komCourse"></span></h2>
-<div class="row" role="group" aria-label="KOM-klassement"><button id="komLocal">Lokaal</button><button class="ghost" id="komGeneral">Algemeen</button><button class="ghost" id="komFriends">Vrienden</button><a href="/klassementen" target="_blank" rel="noopener" style="color:#7fb0ff">Profiel en vrienden</a></div>
+<div class="row" role="group" aria-label="KOM-klassement"><button id="komLocal">Lokaal</button><button class="ghost" id="komGeneral">Algemeen</button><button class="ghost" id="komFriends">Vrienden</button><a href="/klassementen/profiel" target="_blank" rel="noopener" style="color:#7fb0ff">Profiel en vrienden</a></div>
 <p id="komOnlineStatus" role="status" style="font-size:13px;color:#aaa"></p>
 <div id="komBody"></div>
 <div class="row"><button class="ghost" id="btnKomReset" style="background:#7a2b2b">Wis records van deze route</button><button class="ghost" id="btnKomClose" style="background:#333">Sluiten</button></div>
@@ -673,7 +673,7 @@ function drawPreview(){
   if(p||gi||hasKom)h+='<span class="rclear">✕ wis records</span>';
   const rr=document.getElementById('routeRecs');rr.innerHTML=h;
   const rc=rr.querySelector('.rclear');
-  if(rc)rc.onclick=()=>{if(confirm('PR, ghost en KOM-records van "'+course.name+'" wissen?')){clearRecords(courseKey());drawPreview();}};
+  if(rc)rc.onclick=()=>{if(confirm('PR, ghost en de KOM-ranglijst van "'+course.name+'" wissen? Het persoonlijk archief blijft bewaard.')){clearRecords(courseKey());drawPreview();}};
 }
 
 function fmtKm(km){return km.toFixed(1).replace('.',',');}
@@ -2557,7 +2557,13 @@ function recordSeg(sg,t,avgP){
   list.sort((a,b)=>a.time-b.time);
   if(list.length>20)list.length=20;
   KOMS[komKeyOf(sg.idx)]=list;
-  fetch('/koms/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:komKeyOf(sg.idx),entry:entry})});
+  const meta={route_id:(route&&route!=='free')?route:null,route_name:course.name||'',
+    route_km:+course.km.toFixed(2),route_seed:course.seed||0,segment_index:sg.idx,segment_name:sg.label||'',
+    simulated:!!(rideSimUsed||simOn),erg:!!ergOn,paused:!!segOnlinePaused};
+  const known=ROUTES.find(r=>r.id===route);
+  if(!(known&&known.fixed&&known.ele)&&course&&course.pts)
+    meta.course={ele:course.pts,step:course.step,segs:segs.map(s=>({at:s.at,end:s.end}))};
+  fetch('/koms/record',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:komKeyOf(sg.idx),entry:entry,archive:meta})});
   lastKom={idx:sg.idx,time:t,at:simT};
   komLiveRes={sg:sg,date:entry.date};komLiveUntil=nowT+12;
   rideKoms.push({label:sg.label,time:t,pr:isPR});
@@ -2793,7 +2799,7 @@ document.getElementById('komFriends').onclick=()=>showKomScope('friends');
 document.getElementById('btnKom').onclick=()=>openKom();
 document.getElementById('btnKomClose').onclick=()=>{document.getElementById('kom').style.display='none';};
 document.getElementById('btnKomReset').onclick=()=>{
-  if(!confirm('PR, ghost en KOM-records van "'+course.name+'" wissen?'))return;
+  if(!confirm('PR, ghost en de KOM-ranglijst van "'+course.name+'" wissen? Het persoonlijk archief blijft bewaard.'))return;
   clearRecords(courseKey());
   renderKomBoards(document.getElementById('komBody'));
 };

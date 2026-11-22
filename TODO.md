@@ -2,7 +2,7 @@
 
 ## Klassementen: Persoonlijk En Online
 
-Status: gepland, nog niet geimplementeerd.
+Status: stap 1 (lokaal archief en Mijn KOM's) is geimplementeerd. Het online overzicht wacht op een serverendpoint.
 
 Een extra Klassementen-tegel op het startscherm voor het persoonlijke KOM-archief
 en de online klassementen, zonder eerst een route in Ride te openen.
@@ -10,22 +10,22 @@ Hiervoor zijn zowel appwijzigingen als een serverupdate nodig.
 
 ### Overzicht En Bediening
 
-- [ ] Een extra Klassementen-tegel en zelfstandige overzichtspagina toevoegen.
-- [ ] Tabs Mijn KOM's, Algemeen en Vrienden maken.
-- [ ] Zoeken en filteren op route, KOM-segment, rijder en periode toevoegen waar van toepassing.
-- [ ] Bij Mijn KOM's per segment de beste tijd, bijbehorend vermogen, aantal pogingen en laatste datum tonen.
-- [ ] Alle bewaarde eigen pogingen in een detailweergave tonen, sorteerbaar op datum en tijd.
-- [ ] Het huidige profielbeheer bereikbaar houden via Profiel en vrienden op een eigen subpagina.
-- [ ] De bestaande ranglijsten tijdens Ride behouden.
+- [x] Een extra Klassementen-tegel en zelfstandige overzichtspagina toevoegen.
+- [x] Tabs Mijn KOM's, Algemeen en Vrienden maken.
+- [x] Zoeken en filteren op route, KOM-segment, rijder en periode toevoegen waar van toepassing.
+- [x] Bij Mijn KOM's per segment de beste tijd, bijbehorend vermogen, aantal pogingen en laatste datum tonen.
+- [x] Alle bewaarde eigen pogingen in een detailweergave tonen, sorteerbaar op datum en tijd.
+- [x] Het huidige profielbeheer bereikbaar houden via Profiel en vrienden op een eigen subpagina.
+- [x] De bestaande ranglijsten tijdens Ride behouden.
 
 ### Persoonlijk Archief
 
-- [ ] Alle toekomstige volledige lokale KOM-pogingen archiveren, ook buiten de huidige twintig snelste.
-- [ ] Bestaande lokale records meenemen en duidelijk maken dat eerder verwijderde pogingen niet automatisch terugkomen.
-- [ ] Nieuwe pogingen voorzien van een uniek ID, route-/segmentversie, namen, finishtijdstip, tijd, gemiddeld vermogen en rijder.
-- [ ] Simulatie-, ERG- en pauzestatus vastleggen en herkenbaar tonen; ontbrekende gegevens bij oude records niet verzinnen.
-- [ ] Oude en onbekende lokale routevarianten zichtbaar houden.
-- [ ] Mijn KOM's offline bruikbaar houden.
+- [x] Alle toekomstige volledige lokale KOM-pogingen archiveren, ook buiten de huidige twintig snelste.
+- [x] Bestaande lokale records meenemen en duidelijk maken dat eerder verwijderde pogingen niet automatisch terugkomen.
+- [x] Nieuwe pogingen voorzien van een uniek ID, route-/segmentversie, namen, finishtijdstip, tijd, gemiddeld vermogen en rijder.
+- [x] Simulatie-, ERG- en pauzestatus vastleggen en herkenbaar tonen; ontbrekende gegevens bij oude records niet verzinnen.
+- [x] Oude en onbekende lokale routevarianten zichtbaar houden.
+- [x] Mijn KOM's offline bruikbaar houden.
 
 ### Online Klassementen
 
@@ -43,7 +43,8 @@ persoonlijke online pogingenhistorie.
 
 ### Verificatie En Uitrol
 
-- [ ] Tests toevoegen voor archivering, migratie, online overzicht, privacy en routeversies.
+- [x] Tests toevoegen voor archivering, migratie en routeversies.
+- [ ] Tests toevoegen voor online overzicht en privacy.
 - [ ] De interface testen op desktop en mobiel, inclusief offlinegebruik en netwerkfouten.
 - [ ] Na verificatie app en server publiceren.
 - [ ] De Debian-testserver volgens HANDLEIDING_ONLINE_KOM.md bijwerken en controleren.

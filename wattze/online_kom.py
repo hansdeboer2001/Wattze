@@ -11,6 +11,8 @@ import threading
 import uuid
 from urllib import error, parse, request
 
+from wattze.kom_archive import canonical_revision
+
 app_state = importlib.import_module("wattze.state")
 _lock = threading.RLock()
 MAX_PENDING = 1000
@@ -213,8 +215,9 @@ def _route(route_id, segment, revision=None, course=None):
         boundaries.append({"at": round(at, 6), "end": round(end, 6)})
     if type(segment) is not int or not 0 <= segment < len(segs):
         raise OnlineError("Ongeldig KOM-segment")
-    canonical = {"ele": [round(v, 6) for v in ele], "step": round(step, 6), "segs": boundaries}
-    actual = hashlib.sha256(json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:24]
+    actual = canonical_revision(ele, step, boundaries)
+    if actual is None:
+        raise OnlineError("Ongeldige routeversie")
     if revision is not None and revision != actual:
         raise OnlineError("De routeversie komt niet overeen")
     if course is not None:

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Klassementen - Wattze</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#0b0e14;color:#e7eaf0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.45}
+main{max-width:920px;margin:0 auto}h1{margin:0 0 4px;font-size:26px}h2{margin:0 0 8px;font-size:18px}
+a{color:#7fb0ff}.sub,.hint,.muted{color:#9aa3b5;font-size:13px}.nav{margin:0 0 14px}
+.card{background:#161b26;border:1px solid #232c3d;border-radius:12px;padding:16px;margin:14px 0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.tabs button{background:#222c44;color:#e7eaf0;border:1px solid #31415f;border-radius:999px;padding:8px 14px;cursor:pointer;font:inherit}
+.tabs button[aria-selected="true"]{background:#2f6fed;border-color:#2f6fed;color:#fff}
+.notice{background:#1c2433;border:1px solid #3a4a68;border-radius:10px;padding:12px 14px;color:#c9d4e8;font-size:13px}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#9aa3b5}
+input,select{width:100%;padding:8px;background:#222c44;color:#eee;border:1px solid #48536a;border-radius:6px;font:inherit}
+button.ghost,button.sort{background:#29354d;color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font:inherit}
+button.sort[aria-pressed="true"]{background:#2f6fed}
+.seg{display:grid;grid-template-columns:minmax(0,1.5fr) 5.2rem 4.6rem 6.2rem 7.2rem;gap:4px 12px;align-items:center;width:100%;text-align:left;background:#151a24;color:inherit;border:1px solid #232c3d;border-radius:12px;padding:12px 14px;margin:8px 0;cursor:pointer;font:inherit}
+.seg:hover,.seg:focus-visible{border-color:#2f6fed}
+.seg b{font-size:16px}.best{font-size:20px;font-weight:700;color:#ffd24d;text-align:right}
+.stat{text-align:right;font-size:14px}.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.badge{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
+.badge.sim{background:#4a3b12;color:#ffd24d}.badge.erg{background:#1b2a4a;color:#7fb0ff}
+.badge.pauze{background:#4a2e12;color:#ff9a3d}.badge.onbekend{background:#2a3142;color:#9aa3b5}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px 8px 8px 0;text-align:left;border-bottom:1px solid #232c3d;vertical-align:top}
+th button{background:none;border:0;color:#9aa3b5;font:inherit;cursor:pointer;padding:0}
+#status{min-height:1.2em;color:#b6d2ff}
+#btnHome{position:fixed;top:16px;right:16px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:#222c44;border:2px solid #7fb0ff;border-radius:10px;color:#c7d3e8;font-size:24px;font-weight:700;line-height:1;text-decoration:none}
+[hidden]{display:none!important}
+@media(max-width:720px){
+  body{padding:12px}.filters{grid-template-columns:1fr}
+  .seg{grid-template-columns:1fr 1fr 1fr}
+  .seg>div:first-child{grid-column:1 / -1}
+  .best{text-align:left}
+}
+@media(max-width:480px){.filters{grid-template-columns:1fr}}
+</style></head><body>
+<a id="btnHome" href="/" title="Terug naar dashboard" aria-label="Terug naar dashboard">&#10005;</a>
+<main>
+<p class="nav"><a href="/game">Ride</a> &middot; <a href="/klassementen/profiel">Profiel en vrienden</a></p>
+<h1>Klassementen</h1>
+<p class="sub">Je eigen KOM-pogingen op deze pc. Algemeen en Vrienden komen later via de server.</p>
+<div class="tabs" role="tablist" aria-label="Klassementen">
+  <button type="button" role="tab" id="tabMine" aria-selected="true" aria-controls="panelMine">Mijn KOM's</button>
+  <button type="button" role="tab" id="tabGeneral" aria-selected="false" aria-controls="panelGeneral">Algemeen</button>
+  <button type="button" role="tab" id="tabFriends" aria-selected="false" aria-controls="panelFriends">Vrienden</button>
+</div>
+<p id="status" role="status"></p>
+<section id="panelMine">
+  <p class="notice" id="notice">Eerder verwijderde pogingen en tijden die buiten de oude top 20 vielen, komen niet terug. Nieuwe volledige pogingen worden wel allemaal bewaard, ook buiten de ranglijst. Wissen in Ride haalt alleen de ranglijst leeg; dit archief blijft staan.</p>
+  <div id="listView">
+    <div class="filters">
+      <label>Zoeken<input id="q" type="search" placeholder="Route, segment of rijder" autocomplete="off"></label>
+      <label>Route<select id="route"><option value="">Alle routes</option></select></label>
+      <label>Segment<select id="segment"><option value="">Alle segmenten</option></select></label>
+      <label>Periode<select id="period">
+        <option value="all">Alles</option>
+        <option value="7">Laatste 7 dagen</option>
+        <option value="30">Laatste 30 dagen</option>
+        <option value="90">Laatste 90 dagen</option>
+        <option value="year">Dit jaar</option>
+      </select></label>
+    </div>
+    <p class="muted" id="count"></p>
+    <div id="segments"></div>
+  </div>
+  <div id="detailView" hidden>
+    <p><button type="button" class="ghost" id="back">Terug naar het overzicht</button></p>
+    <h2 id="detailTitle"></h2>
+    <p class="hint" id="detailMeta"></p>
+    <div class="badges" id="detailSort">
+      <button type="button" class="sort" id="sortDate" aria-pressed="true">Datum</button>
+      <button type="button" class="sort" id="sortTime" aria-pressed="false">Tijd</button>
+    </div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Datum</th><th>Tijd</th><th>Vermogen</th><th>Rijder</th><th>Status</th></tr></thead>
+      <tbody id="detailRows"></tbody>
+    </table></div>
+  </div>
+</section>
+<section id="panelGeneral" hidden>
+  <div class="card">
+    <h2>Algemeen</h2>
+    <p>Binnenkort. Het algemene klassement komt hier via een nieuw serverendpoint.</p>
+    <p class="hint">Tijdens een rit kun je Algemeen nog steeds openen in de KOM-ranglijst van Ride. Dat is de beste tijd per rijder, niet het volledige archief.</p>
+  </div>
+</section>
+<section id="panelFriends" hidden>
+  <div class="card">
+    <h2>Vrienden</h2>
+    <p>Binnenkort. Het vriendenklassement komt hier via een nieuw serverendpoint.</p>
+    <p class="hint">Vrienden en delen beheer je via <a href="/klassementen/profiel">Profiel en vrienden</a>. Tijdens een rit blijft het tabblad Vrienden in Ride werken.</p>
+  </div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let attempts=[],selected=null,sortKey='date',sortDir='desc';
+function routeLabel(a){
+  let name=a.route_name||'Onbekende route';
+  if(a.route_km)name+=' · '+String(a.route_km).replace('.',',')+' km';
+  if(a.route_seed&&a.route_seed!=='0')name+=' · parcours #'+a.route_seed;
+  return name;
+}
+function segmentLabel(a){
+  if(a.segment_name)return a.segment_name;
+  if(Number.isInteger(a.segment_index))return 'Segment '+(a.segment_index+1);
+  return 'Segment';
+}
+function variantLabel(a){return a.revision?('Versie '+a.revision.slice(0,8)):'Oude of onbekende variant';}
+function groupId(a){return (a.key||'')+'\n'+(a.revision||'');}
+function attemptTime(a){
+  const v=a&&a.date;
+  if(typeof v==='number'&&Number.isFinite(v))return v;
+  if(typeof v==='string'){const t=Date.parse(v);if(!Number.isNaN(t))return t;}
+  return null;
+}
+function fmtWhen(v){
+  if(typeof v==='number'&&Number.isFinite(v))return new Date(v).toLocaleString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  if(typeof v==='string'&&v.trim())return v.trim();
+  return '—';
+}
+function fmtClock(s){
+  if(typeof s!=='number'||!Number.isFinite(s))return '—';
+  s=Math.max(0,Math.floor(s));
+  const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
+  return (h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(ss).padStart(2,'0');
+}
+function fmtPower(v){return (typeof v==='number'&&Number.isFinite(v))?Math.round(v)+' W':'—';}
+function badge(kind,text){
+  const el=document.createElement('span');el.className='badge '+kind;el.textContent=text;return el;
+}
+function statusBadges(a){
+  const wrap=document.createElement('span');wrap.className='badges';
+  if(a.simulated==null&&a.erg==null&&a.paused==null){wrap.append(badge('onbekend','Sim, ERG en pauze onbekend'));return wrap;}
+  if(a.simulated)wrap.append(badge('sim','Simulatie'));
+  if(a.erg)wrap.append(badge('erg','ERG'));
+  if(a.paused)wrap.append(badge('pauze','Pauze'));
+  if(!wrap.childNodes.length)wrap.textContent='—';
+  return wrap;
+}
+function inPeriod(a){
+  const period=$('period').value;
+  if(period==='all')return true;
+  const t=attemptTime(a);
+  if(t==null)return false;
+  const now=Date.now();
+  if(period==='year')return t>=new Date(new Date().getFullYear(),0,1).getTime();
+  return t>=now-Number(period)*86400000;
+}
+function matchesQuery(a){
+  const q=$('q').value.trim().toLowerCase();
+  if(!q)return true;
+  return [a.route_name,a.segment_name,a.user,a.revision,a.route_km,routeLabel(a),segmentLabel(a),variantLabel(a)].join(' ').toLowerCase().includes(q);
+}
+function filtered(){
+  const route=$('route').value,segment=$('segment').value;
+  return attempts.filter(a=>matchesQuery(a)&&inPeriod(a)&&(!route||routeLabel(a)===route)&&(!segment||segmentLabel(a)===segment));
+}
+function groupsOf(list){
+  const map=new Map();
+  for(const a of list){
+    const id=groupId(a);
+    if(!map.has(id))map.set(id,[]);
+    map.get(id).push(a);
+  }
+  return [...map.entries()].map(([id,rows])=>{
+    const sample=rows[0];
+    let best=null,last=null,lastT=-Infinity;
+    for(const row of rows){
+      if(typeof row.time==='number'&&(!best||row.time<best.time))best=row;
+      const t=attemptTime(row);
+      if(t!=null&&t>=lastT){lastT=t;last=row;}
+    }
+    return {id,rows,sample,best,last};
+  }).sort((a,b)=>routeLabel(a.sample).localeCompare(routeLabel(b.sample),'nl')||((a.sample.segment_index||0)-(b.sample.segment_index||0))||variantLabel(a.sample).localeCompare(variantLabel(b.sample),'nl'));
+}
+function fillSelect(sel,values,placeholder){
+  const current=sel.value;
+  sel.replaceChildren();
+  const all=document.createElement('option');all.value='';all.textContent=placeholder;sel.append(all);
+  for(const value of values){
+    const opt=document.createElement('option');opt.value=value;opt.textContent=value;sel.append(opt);
+  }
+  if([...sel.options].some(o=>o.value===current))sel.value=current;
+  else sel.value='';
+}
+function refreshFilters(){
+  const routes=[...new Set(attempts.map(routeLabel))].sort((a,b)=>a.localeCompare(b,'nl'));
+  fillSelect($('route'),routes,'Alle routes');
+  const route=$('route').value;
+  const segs=[...new Set(attempts.filter(a=>!route||routeLabel(a)===route).map(segmentLabel))].sort((a,b)=>a.localeCompare(b,'nl'));
+  fillSelect($('segment'),segs,'Alle segmenten');
+}
+function stat(className,label,value){
+  const el=document.createElement('div');el.className='stat '+className;
+  const main=document.createElement('div');main.textContent=value;el.append(main);
+  const sub=document.createElement('div');sub.className='muted';sub.textContent=label;el.append(sub);
+  return el;
+}
+function renderList(){
+  const host=$('segments');host.replaceChildren();
+  const groups=groupsOf(filtered());
+  $('count').textContent=groups.length?groups.length+(groups.length===1?' segment':' segmenten'):'';
+  if(!attempts.length){host.textContent='Nog geen KOM-pogingen in het archief. Rijd een segment uit in Ride; de poging komt hier te staan.';return;}
+  if(!groups.length){host.textContent='Geen pogingen voor deze filters.';return;}
+  for(const group of groups){
+    const btn=document.createElement('button');btn.type='button';btn.className='seg';
+    const title=document.createElement('div');
+    const name=document.createElement('b');name.textContent=routeLabel(group.sample);title.append(name);
+    const meta=document.createElement('div');meta.className='muted';
+    meta.textContent=segmentLabel(group.sample)+' · '+variantLabel(group.sample);
+    title.append(meta);
+    if(group.best)title.append(statusBadges(group.best));
+    const best=document.createElement('div');best.className='best';best.textContent=group.best?fmtClock(group.best.time):'—';
+    const power=stat('power','bij beste',group.best?fmtPower(group.best.avgP):'—');
+    const count=stat('attempts',group.rows.length===1?'poging':'pogingen',String(group.rows.length));
+    const when=stat('','laatste',group.last?fmtWhen(group.last.date):'—');
+    btn.append(title,best,power,count,when);
+    btn.onclick=()=>{selected=group.id;render();};
+    host.append(btn);
+  }
+}
+function renderDetail(){
+  const rows=filtered().filter(a=>groupId(a)===selected);
+  if(!rows.length){selected=null;render();return;}
+  const sample=rows[0];
+  $('detailTitle').textContent=routeLabel(sample)+' · '+segmentLabel(sample);
+  $('detailMeta').textContent=(sample.revision?('Versie '+sample.revision):'Oude of onbekende variant')+' · '+rows.length+(rows.length===1?' poging':' pogingen');
+  const sorted=rows.slice().sort((a,b)=>{
+    const dir=sortDir==='asc'?1:-1;
+    if(sortKey==='time')return ((a.time||0)-(b.time||0))*dir;
+    return ((attemptTime(a)||0)-(attemptTime(b)||0))*dir;
+  });
+  const body=$('detailRows');body.replaceChildren();
+  for(const row of sorted){
+    const tr=document.createElement('tr');
+    for(const value of [fmtWhen(row.date),fmtClock(row.time),fmtPower(row.avgP),row.user||'—']){
+      const td=document.createElement('td');td.textContent=value;tr.append(td);
+    }
+    const status=document.createElement('td');status.append(statusBadges(row));tr.append(status);
+    body.append(tr);
+  }
+  $('sortDate').setAttribute('aria-pressed',String(sortKey==='date'));
+  $('sortTime').setAttribute('aria-pressed',String(sortKey==='time'));
+  $('sortDate').textContent=sortKey==='date'?(sortDir==='desc'?'Datum · nieuwste eerst':'Datum · oudste eerst'):'Datum';
+  $('sortTime').textContent=sortKey==='time'?(sortDir==='asc'?'Tijd · snelste eerst':'Tijd · langzaamste eerst'):'Tijd';
+}
+function render(){
+  const detail=!!selected;
+  $('listView').hidden=detail;
+  $('detailView').hidden=!detail;
+  if(detail)renderDetail();
+  else renderList();
+}
+function showTab(name){
+  const mine=name==='mijn';
+  $('panelMine').hidden=!mine;
+  $('panelGeneral').hidden=name!=='algemeen';
+  $('panelFriends').hidden=name!=='vrienden';
+  $('tabMine').setAttribute('aria-selected',String(mine));
+  $('tabGeneral').setAttribute('aria-selected',String(name==='algemeen'));
+  $('tabFriends').setAttribute('aria-selected',String(name==='vrienden'));
+  const url=new URL(location.href);
+  if(mine)url.searchParams.delete('tab');else url.searchParams.set('tab',name);
+  history.replaceState(null,'',url);
+}
+$('tabMine').onclick=()=>showTab('mijn');
+$('tabGeneral').onclick=()=>showTab('algemeen');
+$('tabFriends').onclick=()=>showTab('vrienden');
+$('q').oninput=()=>{selected=null;render();};
+$('route').onchange=()=>{refreshFilters();selected=null;render();};
+$('segment').onchange=()=>{selected=null;render();};
+$('period').onchange=()=>{selected=null;render();};
+$('back').onclick=()=>{selected=null;render();};
+function toggleSort(key,first){
+  if(sortKey===key)sortDir=sortDir==='asc'?'desc':'asc';
+  else{sortKey=key;sortDir=first;}
+  renderDetail();
+}
+$('sortDate').onclick=()=>toggleSort('date','desc');
+$('sortTime').onclick=()=>toggleSort('time','asc');
+const initial=new URLSearchParams(location.search).get('tab');
+if(initial==='algemeen'||initial==='vrienden')showTab(initial);
+fetch('/koms/archief',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+  if(!d||d.ok===false)throw new Error((d&&d.error)||'Archief niet beschikbaar');
+  attempts=Array.isArray(d.attempts)?d.attempts:[];
+  if(d.notice)$('notice').textContent=d.notice+' Wissen in Ride haalt alleen de ranglijst leeg; dit archief blijft staan.';
+  refreshFilters();
+  render();
+  $('status').textContent='';
+}).catch(e=>{$('status').textContent=e.message||'Het archief kon niet worden geladen. Je lokale ritten blijven beschikbaar.';});
+</script>
+</body></html>
