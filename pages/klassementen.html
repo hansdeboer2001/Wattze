@@ -19,6 +19,7 @@ button.ghost,button.sort{background:#29354d;color:#fff;border:0;border-radius:8p
 button.sort[aria-pressed="true"]{background:#2f6fed}
 .seg{display:grid;grid-template-columns:minmax(0,1.5fr) 5.2rem 4.6rem 6.2rem 7.2rem;gap:4px 12px;align-items:center;width:100%;text-align:left;background:#151a24;color:inherit;border:1px solid #232c3d;border-radius:12px;padding:12px 14px;margin:8px 0;cursor:pointer;font:inherit}
 .seg:hover,.seg:focus-visible{border-color:#2f6fed}
+.online-board{grid-template-columns:minmax(0,1fr) auto;overflow-wrap:anywhere}.online-results{overflow-x:auto}
 .seg b{font-size:16px}.best{font-size:20px;font-weight:700;color:#ffd24d;text-align:right}
 .stat{text-align:right;font-size:14px}.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .badge{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
@@ -41,14 +42,14 @@ th button{background:none;border:0;color:#9aa3b5;font:inherit;cursor:pointer;pad
 <main>
 <p class="nav"><a href="/game">Ride</a> &middot; <a href="/klassementen/profiel">Profiel en vrienden</a></p>
 <h1>Klassementen</h1>
-<p class="sub">Je eigen KOM-pogingen en route-records op deze pc. Algemeen en Vrienden komen later via de server.</p>
+<p class="sub">Bekijk je lokale archief of vergelijk gedeelde segmenttijden met andere rijders.</p>
 <div class="tabs" role="tablist" aria-label="Klassementen">
   <button type="button" role="tab" id="tabMine" aria-selected="true" aria-controls="panelMine">Mijn KOM's</button>
   <button type="button" role="tab" id="tabGeneral" aria-selected="false" aria-controls="panelGeneral">Algemeen</button>
   <button type="button" role="tab" id="tabFriends" aria-selected="false" aria-controls="panelFriends">Vrienden</button>
 </div>
-<p id="status" role="status"></p>
 <section id="panelMine">
+  <p id="status" role="status"></p>
   <p class="notice" id="notice">Eerder verwijderde pogingen en tijden die buiten de oude top 20 vielen, komen niet terug. Nieuwe volledige pogingen en uitgereden routes worden wel allemaal bewaard, ook buiten de ranglijst. Opgeslagen ritten zijn niet overgenomen: daaruit is niet betrouwbaar af te leiden dat de route is uitgereden. Wissen in Ride haalt alleen de ranglijst leeg; dit archief blijft staan. De ghost van je beste rit blijft werken.</p>
   <div id="listView">
     <div class="filters">
@@ -83,15 +84,15 @@ th button{background:none;border:0;color:#9aa3b5;font:inherit;cursor:pointer;pad
 <section id="panelGeneral" hidden>
   <div class="card">
     <h2>Algemeen</h2>
-    <p>Binnenkort. Het algemene klassement komt hier via een nieuw serverendpoint.</p>
-    <p class="hint">Tijdens een rit kun je Algemeen nog steeds openen in de KOM-ranglijst van Ride. Dat is de beste tijd per rijder, niet het volledige archief.</p>
+    <p class="hint">Open een segment voor de beste openbare tijd per rijder.</p>
+    <div id="general" class="online-results" aria-live="polite"></div>
   </div>
 </section>
 <section id="panelFriends" hidden>
   <div class="card">
     <h2>Vrienden</h2>
-    <p>Binnenkort. Het vriendenklassement komt hier via een nieuw serverendpoint.</p>
-    <p class="hint">Vrienden en delen beheer je via <a href="/klassementen/profiel">Profiel en vrienden</a>. Tijdens een rit blijft het tabblad Vrienden in Ride werken.</p>
+    <p class="hint">Open een segment voor de gedeelde tijden van jou en je vrienden. Beheer het delen via <a href="/klassementen/profiel">Profiel en vrienden</a>.</p>
+    <div id="friends" class="online-results" aria-live="polite"></div>
   </div>
 </section>
 </main>
@@ -260,7 +261,61 @@ function render(){
   if(detail)renderDetail();
   else renderList();
 }
+let onlineRequest=0;
+function textNode(tag,value){
+  const el=document.createElement(tag);el.textContent=value;return el;
+}
+function boardLabel(b){return b.routeId+' · Segment '+(b.segment+1)+' · Versie '+b.revision;}
+async function loadOnline(scope,board=null){
+  const ticket=++onlineRequest,host=$(scope);
+  host.replaceChildren();
+  const result=document.createElement('div');
+  if(board){
+    const back=textNode('button','Terug naar het overzicht');back.className='ghost';
+    back.onclick=()=>loadOnline(scope);host.append(back,textNode('h3',boardLabel(board)));
+  }
+  result.textContent='Klassement laden…';host.append(result);
+  try{
+    const query=new URLSearchParams({scope});
+    if(board){query.set('route_id',board.routeId);query.set('revision',board.revision);query.set('segment',board.segment);}
+    const response=await fetch('/online-kom/'+(board?'leaderboard':'overview')+'?'+query,{cache:'no-store'});
+    const data=await response.json();
+    if(ticket!==onlineRequest)return;
+    if(!response.ok||data?.ok===false)throw new Error(data?.error||'Klassement niet beschikbaar.');
+    const rows=board?data.entries:data.boards;
+    if(!Array.isArray(rows))throw new Error('Ongeldig antwoord voor dit klassement.');
+    if(!rows.length){result.textContent='Nog geen gedeelde resultaten.';return;}
+    const content=document.createDocumentFragment();
+    if(!board){
+      for(const b of rows){
+        const btn=textNode('button','');btn.className='seg online-board';
+        const label=textNode('div',boardLabel(b));label.append(textNode('div',b.leader));
+        const time=textNode('b',fmtClock(b.time));time.className='best';
+        btn.append(label,time);btn.onclick=()=>loadOnline(scope,b);content.append(btn);
+      }
+    }else{
+      const table=document.createElement('table'),head=table.createTHead().insertRow();
+      for(const title of ['Positie','Rijder','Tijd','Gem. vermogen','Datum'])head.append(textNode('th',title));
+      const body=table.createTBody();
+      rows.forEach((r,i)=>{
+        const tr=body.insertRow();
+        for(const v of [r.position??i+1,r.name||'—',fmtClock(r.time),fmtPower(r.avgP),fmtWhen(r.date)])tr.append(textNode('td',v));
+        if(r.self===true)tr.cells[1].append(' (jij)');
+      });
+      content.append(table);
+      // Identity is optional: a status failure must not hide the public board.
+      fetch('/online-kom/status',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(status=>{
+        const id=status?.profile?.id;
+        if(ticket!==onlineRequest||!id)return;
+        rows.forEach((r,i)=>{if(r.id===id&&r.self!==true)body.rows[i].cells[1].append(' (jij)');});
+      }).catch(()=>{});
+    }
+    result.replaceChildren(content);
+  }catch(e){if(ticket===onlineRequest)result.textContent='Laden mislukt: '+e.message;}
+}
 function showTab(name){
+  ++onlineRequest;
+  $('general').replaceChildren();$('friends').replaceChildren();
   const mine=name==='mijn';
   $('panelMine').hidden=!mine;
   $('panelGeneral').hidden=name!=='algemeen';
@@ -271,6 +326,7 @@ function showTab(name){
   const url=new URL(location.href);
   if(mine)url.searchParams.delete('tab');else url.searchParams.set('tab',name);
   history.replaceState(null,'',url);
+  if(!mine)loadOnline(name==='algemeen'?'general':'friends');
 }
 $('tabMine').onclick=()=>showTab('mijn');
 $('tabGeneral').onclick=()=>showTab('algemeen');

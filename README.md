@@ -188,9 +188,9 @@ beschikbaar totdat je bevestigt dat je hem hebt bewaard. Deel nooit de herstelsl
 - **Algemeen:** openbare beste tijd per rijder; bekijken kan zonder profiel.
 - **Vrienden:** jouw beste tijd en die van geaccepteerde vrienden die delen aanzetten.
 
-Op `/klassementen` werkt Mijn KOM's offline. Algemeen en Vrienden op die pagina
-volgen later via een nieuw serverendpoint. Tijdens een rit vind je die twee
-tabs al in de KOM-ranglijst. Stuur je **vriendencode** naar
+Op `/klassementen` werkt Mijn KOM's offline. Algemeen en Vrienden tonen de
+leider en tijd per segment. Open een segment voor de ranglijst van die routeversie.
+Tijdens een rit vind je die twee tabs ook in de KOM-ranglijst. Stuur je **vriendencode** naar
 een fietsmaatje. Die voert hem in en verstuurt een verzoek; jij accepteert dat
 onder Ontvangen verzoeken. Beide rijders kunnen een vriendschap verwijderen.
 De vriendencode is geen login en geeft op zichzelf geen toegang tot resultaten.

@@ -324,6 +324,39 @@ class OnlineKOMTests(unittest.TestCase):
                 stream.read.assert_called_once_with(kom.MAX_ERROR_RESPONSE + 1)
                 stream.close.assert_called_once()
 
+    def test_overview_contract_and_scope(self):
+        board = {"routeId": "retired", "revision": "a" * 24, "segment": 3,
+                 "leader": "Rider", "time": 12.75}
+        raw = {"boards": [{**board, "token": TOKEN}], "token": TOKEN}
+        self.opener.open.return_value.__enter__.return_value.read.return_value = json.dumps(raw).encode()
+        for scope, status in (("invalid", 400), ("friends", 409)):
+            self.assertEqual(self.call("/overview", method="GET", query={"scope": scope})[1], status)
+        self.opener.open.assert_not_called()
+        for scope, auth in (("general", None), ("friends", "Bearer " + TOKEN)):
+            if auth:
+                self.identity()
+            self.assertEqual(self.call("/overview", method="GET", query={"scope": scope}),
+                             ({"boards": [board]}, 200))
+            req = self.opener.open.call_args.args[0]
+            self.assertEqual(req.get_method(), "GET")
+            self.assertTrue(req.full_url.endswith("/api/kom/v1/overview?scope=" + scope))
+            self.assertEqual(req.get_header("Authorization"), auth)
+        self.reply({"boards": [dict(board, leader={"token": TOKEN})]})
+        self.assertEqual(self.call("/overview", method="GET")[1], 502)
+
+    def test_historical_leaderboard_without_installed_route(self):
+        query = {"route_id": "retired", "revision": "a" * 24, "segment": "3", "scope": "friends"}
+        self.identity()
+        self.reply({"entries": [{"name": "Rider", "time": 12.75, "token": TOKEN}]})
+        self.assertEqual(self.call("/leaderboard", method="GET", query=query),
+                         ({"ok": True, "revision": query["revision"],
+                           "entries": [{"name": "Rider", "time": 12.75}]}, 200))
+        req = self.opener.open.call_args.args[0]
+        url = urlsplit(req.full_url)
+        self.assertEqual(url.path, "/api/kom/v1/leaderboard")
+        self.assertEqual(parse_qs(url.query), {k: [v] for k, v in query.items()})
+        self.assertEqual(req.get_header("Authorization"), "Bearer " + TOKEN)
+
     def test_public_leaderboard_without_registration(self):
         self.reply({"entries": []})
         query = {"route_id": "official", "segment": "0"}

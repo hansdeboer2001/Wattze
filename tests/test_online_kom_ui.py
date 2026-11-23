@@ -248,6 +248,50 @@ class OnlineKOMBrowserTests(unittest.TestCase):
                              ("friends/remove", "remove"), ("friends/remove", "cancel")):
             self.assertIn(("POST", path, {"id": person}, {}), calls)
 
+    def test_klassementen_overviews_and_segment_detail(self):
+        board = {"routeId": "route & hill", "revision": "a" * 24, "segment": 0,
+                 "leader": MALICIOUS, "time": 65.5}
+        self.page.route("**/online-kom/overview?*", lambda r: r.fulfill(json={"boards": [board]}))
+        self.server.fixture["profile"] = {"id": "remote"}
+        self.page.goto(self.base + "/klassementen")
+        for scope, tab in (("general", "General"), ("friends", "Friends")):
+            with self.page.expect_request(self.base + "/online-kom/overview?scope=" + scope):
+                self.page.locator("#tab" + tab).click()
+            panel = self.page.locator("#" + scope)
+            button = panel.get_by_role("button", name="Segment 1", exact=False)
+            button.wait_for()
+            self.assertIn("1:05", button.inner_text())
+            self.assert_safe_name("#" + scope)
+            button.click()
+            panel.get_by_text("(jij)", exact=False).wait_for()
+            self.assertEqual(panel.locator("tbody td").all_inner_texts(),
+                             ["1", MALICIOUS + " (jij)", "1:05", "234 W", "—"])
+            self.assert_safe_name("#" + scope)
+            query = {"scope": [scope], "route_id": [board["routeId"]],
+                     "revision": [board["revision"]], "segment": ["0"]}
+            self.assertIn(("GET", "leaderboard", None, query), self.server.fixture["calls"])
+            panel.get_by_text("Terug naar het overzicht").click()
+            button.wait_for()
+        self.page.locator("#tabMine").click()
+        self.assertEqual(self.page.locator("#general, #friends").all_text_contents(), ["", ""])
+
+    def test_klassementen_late_private_response_empty_and_error(self):
+        held = []
+        self.page.route("**/online-kom/overview?scope=friends", lambda r: held.append(r))
+        self.page.route("**/online-kom/overview?scope=general", lambda r: r.fulfill(json={"boards": []}))
+        self.page.goto(self.base + "/klassementen?tab=vrienden", wait_until="domcontentloaded")
+        self.page.locator("#friends").get_by_text("Klassement laden…").wait_for()
+        self.page.locator("#tabGeneral").click()
+        self.page.locator("#general").get_by_text("Nog geen gedeelde resultaten.").wait_for()
+        held.pop().fulfill(json={"boards": [{"routeId": "private", "revision": "rev", "segment": 1,
+                                             "leader": MALICIOUS, "time": 80}]})
+        self.page.unroute("**/online-kom/overview?scope=friends")
+        self.page.route("**/online-kom/overview?scope=friends", lambda r: r.fulfill(json={"ok": False, "error": "Offline"}))
+        self.page.locator("#tabFriends").click()
+        self.page.locator("#friends").get_by_text("Laden mislukt: Offline").wait_for()
+        self.assertNotIn(MALICIOUS, self.page.locator("main").text_content())
+        self.assertEqual(self.page.locator("#general").text_content(), "")
+
     def open_game(self):
         self.page.goto(self.base + "/game")
         self.page.wait_for_function("typeof selectRoute === 'function' && typeof openKom === 'function'")

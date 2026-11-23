@@ -150,7 +150,8 @@ def _remote(suffix, token="", body=None):
         if len(raw) > MAX_RESPONSE:
             raise OnlineError("Het antwoord van de online KOM-server is te groot", 502, True)
         result = json.loads(raw)
-        if not isinstance(result, dict) or result.get("ok") is not True:
+        overview = suffix.startswith("/overview?")
+        if not isinstance(result, dict) or result.get("ok", overview) is not True:
             raise OnlineError("Ongeldig antwoord van de online KOM-server", 502, True)
         return result
     except error.HTTPError as exc:
@@ -302,7 +303,11 @@ def _handle(method, suffix, body, query):
             raise OnlineError("De simulatie-instelling moet een boolean zijn")
         if body["simulated"]:
             return {"ok": True, "skipped": "simulated", "pending": len(data["pending"])}
-    public_board = method == "GET" and suffix == "/leaderboard" and query.get("scope", "general") == "general"
+    board_request = method == "GET" and suffix in ("/overview", "/leaderboard")
+    scope = query.get("scope", "general")
+    if board_request and scope not in ("general", "friends"):
+        raise OnlineError("Ongeldig klassement")
+    public_board = board_request and scope == "general"
     if not data["token"] and not public_board:
         if method == "POST" and suffix in ("/attempt", "/retry"):
             return {"ok": True, "skipped": "not_registered", "pending": 0}
@@ -314,16 +319,30 @@ def _handle(method, suffix, body, query):
             data.update(profile=profile, pending=[])
             _save(data)
         return {"ok": True, "profile": profile, **{k: _public(result.get(k, [])) for k in ("friends", "incoming", "outgoing")}}
+    if method == "GET" and suffix == "/overview":
+        boards = _remote("/overview?" + parse.urlencode({"scope": scope}), data["token"]).get("boards")
+        fields = ("routeId", "revision", "segment", "leader", "time")
+        if not isinstance(boards, list) or any(
+                not isinstance(row, dict) or not all(k in row for k in fields)
+                or not all(isinstance(row[k], str) for k in ("routeId", "revision", "leader"))
+                or type(row["segment"]) is not int or type(row["time"]) not in (int, float)
+                or not math.isfinite(row["time"]) for row in boards):
+            raise OnlineError("Ongeldig antwoord van de online KOM-server", 502)
+        return {"boards": [{k: row[k] for k in fields} for row in boards]}
     if method == "GET" and suffix == "/leaderboard":
         try:
             segment = int(query.get("segment", ""))
         except (ValueError, TypeError):
             raise OnlineError("Ongeldig KOM-segment") from None
         route_id = query.get("route_id")
-        revision = _route(route_id, segment, query.get("revision"))
-        scope = query.get("scope", "general")
-        if scope not in ("general", "friends"):
-            raise OnlineError("Ongeldig klassement")
+        revision = query.get("revision")
+        if revision is None:
+            revision = _route(route_id, segment)
+        elif not re.fullmatch(r"[0-9a-f]{24}", revision):
+            raise OnlineError("Ongeldige routeversie")
+        elif (not re.fullmatch(r"[A-Za-z0-9_-]+", route_id or "") or route_id.lower().startswith("eigen-")
+              or not 0 <= segment <= 999999):
+            raise OnlineError("Ongeldig KOM-segment of route")
         result = _public(_remote("/leaderboard?" + parse.urlencode({"route_id": route_id, "revision": revision,
                           "segment": segment, "scope": scope}), data["token"]))
         return {**result, "ok": True, "revision": revision}
